@@ -380,38 +380,41 @@ plt.tight_layout()
 plt.savefig(FIGURES / "top_three_poop_streaks.png", dpi=200)
 plt.close()
 
-# Plot 10: poop clock
-clock_counts = (
-    df.groupby("hour")
-    .size()
-    .reindex(range(24), fill_value=0)
+# Plot 10: distribution of time between poops
+poop_times = df.sort_values("datetime").copy()
+poop_times["hours_since_previous"] = (
+    poop_times["datetime"]
+    .diff()
+    .dt.total_seconds()
+    / 3600
 )
 
-angles = np.linspace(0, 2 * np.pi, 24, endpoint=False)
-width = 2 * np.pi / 24
+time_between = poop_times["hours_since_previous"].dropna()
 
-plt.figure(figsize=(8, 8))
-ax = plt.subplot(111, polar=True)
-
-ax.bar(
-    angles,
-    clock_counts.values,
-    width=width,
-    align="edge"
-)
-
-ax.set_theta_zero_location("N")
-ax.set_theta_direction(-1)
-
-ax.set_xticks(np.linspace(0, 2 * np.pi, 24, endpoint=False))
-ax.set_xticklabels([str(h) for h in range(24)])
-
-ax.set_title("Poop clock", pad=25)
-ax.set_ylabel("Number of poops")
+plt.figure(figsize=(12, 5.5))
+plt.hist(time_between, bins=20)
+plt.title("Distribution of time between poops")
+plt.xlabel("Hours since previous poop")
+plt.ylabel("Number of intervals")
 plt.tight_layout()
-plt.savefig(FIGURES / "poop_clock.png", dpi=200)
+plt.savefig(FIGURES / "time_between_poops_distribution.png", dpi=200)
 plt.close()
 
+
+# Plot 11: distribution of poop quality
+quality_counts = pd.Series({
+    "Good": int(df["is_good"].sum()),
+    "Poor": int(df["is_poor"].sum())
+})
+
+plt.figure(figsize=(12, 5.5))
+plt.bar(quality_counts.index, quality_counts.values)
+plt.title("Distribution of poop quality")
+plt.xlabel("Poop quality")
+plt.ylabel("Number of poops")
+plt.tight_layout()
+plt.savefig(FIGURES / "poop_quality_distribution.png", dpi=200)
+plt.close()
 
 # Website plot list
 # Add future plots here. The website cards and sidebar index are built from this list.
@@ -464,12 +467,24 @@ plots = [
         "file": "poops_by_weekday.png",
         "alt": "Poops by weekday"
     },
-    {
-        "section": "Distributions",
-        "title": "Distribution of daily poop counts",
-        "file": "daily_count_distribution.png",
-        "alt": "Distribution of daily poop counts"
-    }
+{
+    "section": "Distributions",
+    "title": "Distribution of daily poop counts",
+    "file": "daily_count_distribution.png",
+    "alt": "Distribution of daily poop counts"
+},
+{
+    "section": "Distributions",
+    "title": "Distribution of time between poops",
+    "file": "time_between_poops_distribution.png",
+    "alt": "Distribution of time between poops"
+},
+{
+    "section": "Distributions",
+    "title": "Distribution of poop quality",
+    "file": "poop_quality_distribution.png",
+    "alt": "Distribution of poop quality"
+}
 ]
 
 
