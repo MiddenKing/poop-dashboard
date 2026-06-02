@@ -374,6 +374,3 @@ html = f"""<!DOCTYPE html>
 """
 
 Path("index.html").write_text(html, encoding="utf-8")
-"""
-
-Path("index.html").write_text(html, encoding="utf-8")
