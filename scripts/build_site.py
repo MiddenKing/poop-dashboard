@@ -97,7 +97,7 @@ html = f"""<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>The Anonymous Poop Observatory</title>
+  <title>The Poop Observatory</title>
   <style>
     body {{
       max-width: 1000px;
@@ -157,7 +157,7 @@ html = f"""<!DOCTYPE html>
 </head>
 <body>
 
-<h1>The Anonymous Poop Observatory</h1>
+<h1>The Poop Observatory</h1>
 <p class="subtitle">Automatically generated from anonymised raw poop data.</p>
 
 <div class="statbox">
