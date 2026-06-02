@@ -151,6 +151,36 @@ plt.tight_layout()
 plt.savefig(FIGURES / "poops_by_weekday.png", dpi=200)
 plt.close()
 
+# Plot 4: cumulative poops over time
+daily_cumulative = daily.copy()
+daily_cumulative["cumulative_count"] = daily_cumulative["count"].cumsum()
+
+plt.figure(figsize=(12, 5.5))
+plt.plot(daily_cumulative["date"], daily_cumulative["cumulative_count"], marker="o")
+plt.title("Cumulative poops over time")
+plt.xlabel("Date")
+plt.ylabel("Cumulative number of poops")
+plt.tight_layout()
+plt.savefig(FIGURES / "cumulative_poops.png", dpi=200)
+plt.close()
+
+
+# Plot 5: distribution of daily poop counts
+daily_count_distribution = (
+    daily["count"]
+    .value_counts()
+    .sort_index()
+)
+
+plt.figure(figsize=(12, 5.5))
+plt.bar(daily_count_distribution.index, daily_count_distribution.values)
+plt.title("Distribution of daily poop counts")
+plt.xlabel("Poops per day")
+plt.ylabel("Number of days")
+plt.xticks(daily_count_distribution.index)
+plt.tight_layout()
+plt.savefig(FIGURES / "daily_count_distribution.png", dpi=200)
+plt.close()
 
 # List of plots shown on the website
 # To add a new plot later:
@@ -171,6 +201,16 @@ plots = [
         "title": "Poops by weekday",
         "file": "poops_by_weekday.png",
         "alt": "Poops by weekday"
+    },
+    {
+        "title": "Cumulative poops over time",
+        "file": "cumulative_poops.png",
+        "alt": "Cumulative poops over time"
+    },
+    {
+        "title": "Distribution of daily poop counts",
+        "file": "daily_count_distribution.png",
+        "alt": "Distribution of daily poop counts"
     }
 ]
 
