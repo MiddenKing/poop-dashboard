@@ -37,7 +37,14 @@ summary = {
     "average_per_day": round(len(df) / len(daily), 2),
     "good": int(df["is_good"].sum()),
     "poor": int(df["is_poor"].sum()),
+    "good_rate": round(df["is_good"].mean() * 100, 1),
     "poor_rate": round(df["is_poor"].mean() * 100, 1),
+    "max_per_day": int(daily["count"].max()),
+    "zero_poop_days": int((daily["count"] == 0).sum()),
+    "days_with_poop": int((daily["count"] > 0).sum()),
+    "earliest_hour": int(df["hour"].min()),
+    "latest_hour": int(df["hour"].max()),
+    "most_common_hour": int(df["hour"].mode().iloc[0]),
 }
 
 Path("summary.json").write_text(json.dumps(summary, indent=2))
