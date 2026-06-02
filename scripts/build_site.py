@@ -165,17 +165,60 @@ html = f"""<!DOCTYPE html>
     <h3>Total observations</h3>
     <p>{summary["observations"]}</p>
   </div>
+
   <div class="stat">
     <h3>Days covered</h3>
     <p>{summary["days"]}</p>
   </div>
+
+  <div class="stat">
+    <h3>Days with poop</h3>
+    <p>{summary["days_with_poop"]}</p>
+  </div>
+
+  <div class="stat">
+    <h3>Zero-poop days</h3>
+    <p>{summary["zero_poop_days"]}</p>
+  </div>
+
   <div class="stat">
     <h3>Average per day</h3>
     <p>{summary["average_per_day"]}</p>
   </div>
+
+  <div class="stat">
+    <h3>Maximum in one day</h3>
+    <p>{summary["max_per_day"]}</p>
+  </div>
+
+  <div class="stat">
+    <h3>Good poops</h3>
+    <p>{summary["good"]}</p>
+  </div>
+
+  <div class="stat">
+    <h3>Poor poops</h3>
+    <p>{summary["poor"]}</p>
+  </div>
+
+  <div class="stat">
+    <h3>Good poop rate</h3>
+    <p>{summary["good_rate"]}%</p>
+  </div>
+
   <div class="stat">
     <h3>Poor poop rate</h3>
     <p>{summary["poor_rate"]}%</p>
+  </div>
+
+  <div class="stat">
+    <h3>Most common hour</h3>
+    <p>{summary["most_common_hour"]}:00</p>
+  </div>
+
+  <div class="stat">
+    <h3>Earliest / latest hour</h3>
+    <p>{summary["earliest_hour"]}:00–{summary["latest_hour"]}:00</p>
   </div>
 </div>
 
