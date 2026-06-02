@@ -452,6 +452,15 @@ html = f"""<!DOCTYPE html>
 <h1>The Poop Observatory</h1>
 <p class="subtitle">Automatically generated from anonymised raw poop data.</p>
 
+<div class="page-layout">
+
+<nav class="sidebar">
+  <h2>Visualisations</h2>
+{nav_links}
+</nav>
+
+<main class="content">
+
 <div class="statbox">
 
   <div class="stat">
@@ -518,6 +527,10 @@ html = f"""<!DOCTYPE html>
 
 <div class="plots">
 {plot_cards}
+</div>
+
+</main>
+
 </div>
 
 <footer>
