@@ -308,13 +308,14 @@ plt.savefig(FIGURES / "poop_calendar.png", dpi=200)
 plt.close()
 
 
-# Plot 9: poop streaks
+# Plot 9: top three longest poop streaks
 streak_data = daily.copy()
 streak_data["has_poop"] = streak_data["count"] > 0
 
 streaks = []
 current_start = None
 current_length = 0
+previous_date = None
 
 for _, row in streak_data.iterrows():
     if row["has_poop"]:
@@ -347,16 +348,21 @@ streak_df = pd.DataFrame(streaks)
 plt.figure(figsize=(12, 5.5))
 
 if not streak_df.empty:
+    top_streaks = (
+        streak_df
+        .sort_values("length", ascending=False)
+        .head(3)
+        .sort_values("length", ascending=True)
+    )
+
     streak_labels = [
         f"{row['start'].strftime('%Y-%m-%d')} to {row['end'].strftime('%Y-%m-%d')}"
-        for _, row in streak_df.iterrows()
+        for _, row in top_streaks.iterrows()
     ]
 
-    streak_x = np.arange(len(streak_df))
-
-    plt.bar(streak_x, streak_df["length"])
-    plt.xticks(streak_x, streak_labels, rotation=45, ha="right")
-    plt.ylabel("Consecutive days with poop")
+    plt.barh(streak_labels, top_streaks["length"])
+    plt.xlabel("Consecutive days with poop")
+    plt.ylabel("Streak period")
 else:
     plt.text(
         0.5,
@@ -369,12 +375,10 @@ else:
     plt.xticks([])
     plt.yticks([])
 
-plt.title("Poop streaks")
-plt.xlabel("Streak")
+plt.title("Top three longest poop streaks")
 plt.tight_layout()
-plt.savefig(FIGURES / "poop_streaks.png", dpi=200)
+plt.savefig(FIGURES / "top_three_poop_streaks.png", dpi=200)
 plt.close()
-
 
 # Plot 10: poop clock
 clock_counts = (
@@ -419,29 +423,29 @@ plots = [
         "alt": "Cumulative poops over time"
     },
     {
-        "section": "Daily patterns",
-        "title": "Daily frequency",
-        "file": "daily_frequency.png",
-        "alt": "Daily poop frequency"
-    },
-    {
-        "section": "Daily patterns",
-        "title": "Poop calendar",
-        "file": "poop_calendar.png",
-        "alt": "Poop calendar"
-    },
-    {
-        "section": "Daily patterns",
-        "title": "Poop streaks",
-        "file": "poop_streaks.png",
-        "alt": "Poop streaks"
-    },
-    {
-        "section": "Daily patterns",
-        "title": "Rolling average daily poops",
-        "file": "rolling_average_daily_poops.png",
-        "alt": "Rolling average daily poops"
-    },
+    "section": "Daily patterns",
+    "title": "Daily frequency",
+    "file": "daily_frequency.png",
+    "alt": "Daily poop frequency"
+},
+{
+    "section": "Daily patterns",
+    "title": "Poop calendar",
+    "file": "poop_calendar.png",
+    "alt": "Poop calendar"
+},
+{
+    "section": "Daily patterns",
+    "title": "Top three longest poop streaks",
+    "file": "top_three_poop_streaks.png",
+    "alt": "Top three longest poop streaks"
+},
+{
+    "section": "Daily patterns",
+    "title": "Rolling average daily poops",
+    "file": "rolling_average_daily_poops.png",
+    "alt": "Rolling average daily poops"
+},
     {
         "section": "Monthly patterns",
         "title": "Poops by month",
