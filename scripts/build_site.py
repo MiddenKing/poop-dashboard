@@ -168,6 +168,39 @@ plt.close()
 
 
 
+plots = [
+    {
+        "title": "Daily frequency",
+        "file": "daily_frequency.png",
+        "alt": "Daily poop frequency"
+    },
+    {
+        "title": "Hour of day",
+        "file": "hour_of_day.png",
+        "alt": "Poops by hour of day"
+    },
+    {
+        "title": "Poops by weekday",
+        "file": "poops_by_weekday.png",
+        "alt": "Poops by weekday"
+    },
+    {
+        "title": "Good vs poor by weekday",
+        "file": "good_vs_poor_by_weekday.png",
+        "alt": "Good vs poor poops by weekday"
+    }
+]
+
+plot_cards = "\n".join(
+    f"""
+  <div class="plot-card">
+    <h2>{plot["title"]}</h2>
+    <img src="figures/{plot["file"]}" alt="{plot["alt"]}">
+  </div>
+"""
+    for plot in plots
+)
+
 # Build HTML
 html = f"""<!DOCTYPE html>
 <html>
@@ -184,20 +217,24 @@ html = f"""<!DOCTYPE html>
       background: #fafafa;
       color: #222;
     }}
+
     h1, h2 {{
       text-align: center;
     }}
+
     .subtitle {{
       text-align: center;
       color: #555;
     }}
+
     .statbox {{
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
-  gap: 15px;
-  margin: 25px auto;
-  justify-content: center;
-}}
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
+      gap: 15px;
+      margin: 25px auto;
+      justify-content: center;
+    }}
+
     .stat {{
       background: white;
       border: 1px solid #ddd;
@@ -205,17 +242,20 @@ html = f"""<!DOCTYPE html>
       padding: 15px;
       text-align: center;
     }}
+
     .stat h3 {{
       margin-bottom: 5px;
       font-size: 1rem;
       color: #555;
     }}
+
     .stat p {{
       font-size: 1.8rem;
       font-weight: bold;
       margin: 0;
     }}
-        img {{
+
+    img {{
       width: 100%;
       display: block;
       background: white;
@@ -258,6 +298,7 @@ html = f"""<!DOCTYPE html>
 <p class="subtitle">Automatically generated from anonymised raw poop data.</p>
 
 <div class="statbox">
+
   <div class="stat">
     <h3>Total observations</h3>
     <p>{summary["observations"]}</p>
@@ -266,6 +307,16 @@ html = f"""<!DOCTYPE html>
   <div class="stat">
     <h3>Days covered</h3>
     <p>{summary["days"]}</p>
+  </div>
+
+  <div class="stat">
+    <h3>Days with poop</h3>
+    <p>{summary["days_with_poop"]}</p>
+  </div>
+
+  <div class="stat">
+    <h3>Zero-poop days</h3>
+    <p>{summary["zero_poop_days"]}</p>
   </div>
 
   <div class="stat">
@@ -279,6 +330,21 @@ html = f"""<!DOCTYPE html>
   </div>
 
   <div class="stat">
+    <h3>Maximum/day</h3>
+    <p>{summary["max_per_day"]}</p>
+  </div>
+
+  <div class="stat">
+    <h3>Good poops</h3>
+    <p>{summary["good"]}</p>
+  </div>
+
+  <div class="stat">
+    <h3>Poor poops</h3>
+    <p>{summary["poor"]}</p>
+  </div>
+
+  <div class="stat">
     <h3>Good poop rate</h3>
     <p>{summary["good_rate"]}%</p>
   </div>
@@ -289,42 +355,15 @@ html = f"""<!DOCTYPE html>
   </div>
 
   <div class="stat">
-    <h3>Maximum/day</h3>
-    <p>{summary["max_per_day"]}</p>
-  </div>
-
-  <div class="stat">
     <h3>Most common hour</h3>
     <p>{summary["most_common_hour"]}:00</p>
   </div>
-  <div class="stat">
-  <h3>Good poops</h3>
-  <p>{summary["good"]}</p>
+
 </div>
 
-<div class="stat">
-  <h3>Poor poops</h3>
-  <p>{summary["poor"]}</p>
+<div class="plots">
+{plot_cards}
 </div>
-
-<div class="stat">
-  <h3>Days with poop</h3>
-  <p>{summary["days_with_poop"]}</p>
-</div>
-
-<div class="stat">
-  <h3>Zero-poop days</h3>
-  <p>{summary["zero_poop_days"]}</p>
-</div>
-
-<h2>Daily frequency</h2>
-<img src="figures/daily_frequency.png" alt="Daily poop frequency">
-
-<h2>Hour of day</h2>
-<img src="figures/hour_of_day.png" alt="Poops by hour of day">
-
-<h2>Good vs poor by hour</h2>
-<img src="figures/good_vs_poor_by_hour.png" alt="Good vs poor poops by hour">
 
 <footer>
   Raw timestamps are not displayed on this site.
@@ -332,6 +371,9 @@ html = f"""<!DOCTYPE html>
 
 </body>
 </html>
+"""
+
+Path("index.html").write_text(html, encoding="utf-8")
 """
 
 Path("index.html").write_text(html, encoding="utf-8")
