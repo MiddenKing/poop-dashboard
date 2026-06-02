@@ -113,6 +113,61 @@ plt.tight_layout()
 plt.savefig(FIGURES / "hour_of_day.png", dpi=200)
 plt.close()
 
+# Plot 3: poops by weekday
+weekday_order = [
+    "Monday", "Tuesday", "Wednesday", "Thursday",
+    "Friday", "Saturday", "Sunday"
+]
+
+weekday_counts = (
+    df.groupby("weekday")
+    .size()
+    .reindex(weekday_order, fill_value=0)
+)
+
+plt.figure(figsize=(10, 5))
+plt.bar(weekday_counts.index, weekday_counts.values)
+plt.title("Poops by weekday")
+plt.xlabel("Weekday")
+plt.ylabel("Number of poops")
+plt.xticks(rotation=30, ha="right")
+plt.tight_layout()
+plt.savefig(FIGURES / "poops_by_weekday.png", dpi=200)
+plt.close()
+
+# Plot 4: good vs poor poops by weekday
+weekday_quality = (
+    df.groupby(["weekday", value_col])
+    .size()
+    .unstack(fill_value=0)
+    .reindex(weekday_order, fill_value=0)
+)
+
+for v in [0, 1]:
+    if v not in weekday_quality.columns:
+        weekday_quality[v] = 0
+
+weekday_quality = weekday_quality[[1, 0]]
+
+plt.figure(figsize=(10, 5))
+plt.bar(weekday_quality.index, weekday_quality[1], label="Good")
+plt.bar(
+    weekday_quality.index,
+    weekday_quality[0],
+    bottom=weekday_quality[1],
+    label="Poor"
+)
+plt.title("Good vs poor poops by weekday")
+plt.xlabel("Weekday")
+plt.ylabel("Number of poops")
+plt.xticks(rotation=30, ha="right")
+plt.legend()
+plt.tight_layout()
+plt.savefig(FIGURES / "good_vs_poor_by_weekday.png", dpi=200)
+plt.close()
+
+
+
 # Build HTML
 html = f"""<!DOCTYPE html>
 <html>
