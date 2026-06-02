@@ -344,7 +344,7 @@ plt.savefig(FIGURES / "poop_calendar.png", dpi=200)
 plt.close()
 
 
-# Plot 9: top-3 longest poop streaks
+# Plot 9: Top 3 longest poop streaks
 streak_data = daily.copy()
 streak_data["has_poop"] = streak_data["count"] > 0
 
@@ -411,7 +411,7 @@ else:
     plt.xticks([])
     plt.yticks([])
 
-plt.title("Top three longest poop streaks")
+plt.title("Top 3 longest poop streaks")
 plt.tight_layout()
 plt.savefig(FIGURES / "top_three_poop_streaks.png", dpi=200)
 plt.close()
@@ -606,9 +606,9 @@ plots = [
     },
     {
         "section": "Daily patterns",
-        "title": "Top three longest poop streaks",
+        "title": "Top 3 longest poop streaks",
         "file": "top_three_poop_streaks.png",
-        "alt": "Top three longest poop streaks"
+        "alt": "Top 3 longest poop streaks"
     },
     {
         "section": "Daily patterns",
