@@ -198,6 +198,11 @@ plots = [
         "alt": "Daily poop frequency"
     },
     {
+        "title": "Distribution of daily poop counts",
+        "file": "daily_count_distribution.png",
+        "alt": "Distribution of daily poop counts"
+    },
+    {
         "title": "Hour of day",
         "file": "hour_of_day.png",
         "alt": "Poops by hour of day"
@@ -206,11 +211,6 @@ plots = [
         "title": "Poops by weekday",
         "file": "poops_by_weekday.png",
         "alt": "Poops by weekday"
-    },
-    {
-        "title": "Distribution of daily poop counts",
-        "file": "daily_count_distribution.png",
-        "alt": "Distribution of daily poop counts"
     }
 ]
 
