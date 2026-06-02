@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import re
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -280,16 +281,25 @@ plots = [
     }
 ]
 
+def make_anchor(text):
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+nav_links = "\n".join(
+    f"""    <a href="#{make_anchor(plot["title"])}">{plot["title"]}</a>"""
+    for plot in plots
+)
+
+
 plot_cards = "\n".join(
     f"""
-  <div class="plot-card">
+  <div class="plot-card" id="{make_anchor(plot["title"])}">
     <h2>{plot["title"]}</h2>
     <img src="figures/{plot["file"]}" alt="{plot["alt"]}">
   </div>
 """
     for plot in plots
 )
-
 
 # Build HTML
 html = f"""<!DOCTYPE html>
@@ -315,6 +325,61 @@ html = f"""<!DOCTYPE html>
     .subtitle {{
       text-align: center;
       color: #555;
+    }}
+
+    html {{
+      scroll-behavior: smooth;
+    }}
+
+    .page-layout {{
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 25px;
+      align-items: start;
+    }}
+
+    .sidebar {{
+      position: sticky;
+      top: 20px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 15px;
+    }}
+
+    .sidebar h2 {{
+      text-align: left;
+      font-size: 1rem;
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #555;
+    }}
+
+    .sidebar a {{
+      display: block;
+      color: #222;
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }}
+
+    .sidebar a:hover {{
+      background: #f0f0f0;
+    }}
+
+    .content {{
+      min-width: 0;
+    }}
+
+    @media (max-width: 850px) {{
+      .page-layout {{
+        grid-template-columns: 1fr;
+      }}
+
+      .sidebar {{
+        position: static;
+      }}
     }}
 
     .statbox {{
