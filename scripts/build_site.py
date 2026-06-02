@@ -1,7 +1,6 @@
 from pathlib import Path
 import json
 import re
-import calendar
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,6 +9,9 @@ import matplotlib.pyplot as plt
 DATA = Path("data/poop_data.csv")
 FIGURES = Path("figures")
 FIGURES.mkdir(exist_ok=True)
+
+GOOD_COLOR = "C0"
+POOR_COLOR = "C1"
 
 
 # Load data
@@ -90,13 +92,20 @@ for v in [0, 1]:
 daily_quality = daily_quality[[1, 0]]
 
 plt.figure(figsize=(12, 5.5))
-plt.bar(daily_quality.index, daily_quality[1], width=0.9, label="Good")
+plt.bar(
+    daily_quality.index,
+    daily_quality[1],
+    width=0.9,
+    label="Good",
+    color=GOOD_COLOR
+)
 plt.bar(
     daily_quality.index,
     daily_quality[0],
     width=0.9,
     bottom=daily_quality[1],
-    label="Poor"
+    label="Poor",
+    color=POOR_COLOR
 )
 plt.title("Daily poop frequency")
 plt.xlabel("Date")
@@ -122,12 +131,18 @@ for v in [0, 1]:
 hourly_quality = hourly_quality[[1, 0]]
 
 plt.figure(figsize=(12, 5.5))
-plt.bar(hourly_quality.index, hourly_quality[1], label="Good")
+plt.bar(
+    hourly_quality.index,
+    hourly_quality[1],
+    label="Good",
+    color=GOOD_COLOR
+)
 plt.bar(
     hourly_quality.index,
     hourly_quality[0],
     bottom=hourly_quality[1],
-    label="Poor"
+    label="Poor",
+    color=POOR_COLOR
 )
 plt.title("Poops by hour of day")
 plt.xlabel("Hour of day")
@@ -154,12 +169,18 @@ for v in [0, 1]:
 weekday_quality = weekday_quality[[1, 0]]
 
 plt.figure(figsize=(12, 5.5))
-plt.bar(weekday_quality.index, weekday_quality[1], label="Good")
+plt.bar(
+    weekday_quality.index,
+    weekday_quality[1],
+    label="Good",
+    color=GOOD_COLOR
+)
 plt.bar(
     weekday_quality.index,
     weekday_quality[0],
     bottom=weekday_quality[1],
-    label="Poor"
+    label="Poor",
+    color=POOR_COLOR
 )
 plt.title("Poops by weekday")
 plt.xlabel("Weekday")
@@ -246,12 +267,18 @@ monthly_labels = [str(m) for m in monthly_quality.index]
 monthly_x = np.arange(len(monthly_labels))
 
 plt.figure(figsize=(12, 5.5))
-plt.bar(monthly_x, monthly_quality[1].values, label="Good")
+plt.bar(
+    monthly_x,
+    monthly_quality[1].values,
+    label="Good",
+    color=GOOD_COLOR
+)
 plt.bar(
     monthly_x,
     monthly_quality[0].values,
     bottom=monthly_quality[1].values,
-    label="Poor"
+    label="Poor",
+    color=POOR_COLOR
 )
 plt.title("Poops by month")
 plt.xlabel("Month")
@@ -308,7 +335,7 @@ plt.savefig(FIGURES / "poop_calendar.png", dpi=200)
 plt.close()
 
 
-# Plot 9: top-3 longest poop streaks
+# Plot 9: top three longest poop streaks
 streak_data = daily.copy()
 streak_data["has_poop"] = streak_data["count"] > 0
 
@@ -375,10 +402,11 @@ else:
     plt.xticks([])
     plt.yticks([])
 
-plt.title("Top-3 longest poop streaks")
+plt.title("Top three longest poop streaks")
 plt.tight_layout()
 plt.savefig(FIGURES / "top_three_poop_streaks.png", dpi=200)
 plt.close()
+
 
 # Plot 10: distribution of time between poops
 poop_times = df.sort_values("datetime").copy()
@@ -408,13 +436,18 @@ quality_counts = pd.Series({
 })
 
 plt.figure(figsize=(12, 5.5))
-plt.bar(quality_counts.index, quality_counts.values)
+plt.bar(
+    quality_counts.index,
+    quality_counts.values,
+    color=[GOOD_COLOR, POOR_COLOR]
+)
 plt.title("Distribution of poop quality")
 plt.xlabel("Poop quality")
 plt.ylabel("Number of poops")
 plt.tight_layout()
 plt.savefig(FIGURES / "poop_quality_distribution.png", dpi=200)
 plt.close()
+
 
 # Website plot list
 # Add future plots here. The website cards and sidebar index are built from this list.
@@ -426,29 +459,35 @@ plots = [
         "alt": "Cumulative poops over time"
     },
     {
-    "section": "Daily patterns",
-    "title": "Daily frequency",
-    "file": "daily_frequency.png",
-    "alt": "Daily poop frequency"
-},
-{
-    "section": "Daily patterns",
-    "title": "Poop calendar",
-    "file": "poop_calendar.png",
-    "alt": "Poop calendar"
-},
-{
-    "section": "Daily patterns",
-    "title": "Top three longest poop streaks",
-    "file": "top_three_poop_streaks.png",
-    "alt": "Top three longest poop streaks"
-},
-{
-    "section": "Daily patterns",
-    "title": "Rolling average daily poops",
-    "file": "rolling_average_daily_poops.png",
-    "alt": "Rolling average daily poops"
-},
+        "section": "Daily patterns",
+        "title": "Daily frequency",
+        "file": "daily_frequency.png",
+        "alt": "Daily poop frequency"
+    },
+    {
+        "section": "Daily patterns",
+        "title": "Poop calendar",
+        "file": "poop_calendar.png",
+        "alt": "Poop calendar"
+    },
+    {
+        "section": "Daily patterns",
+        "title": "Top three longest poop streaks",
+        "file": "top_three_poop_streaks.png",
+        "alt": "Top three longest poop streaks"
+    },
+    {
+        "section": "Daily patterns",
+        "title": "Rolling average daily poops",
+        "file": "rolling_average_daily_poops.png",
+        "alt": "Rolling average daily poops"
+    },
+    {
+        "section": "Weekly patterns",
+        "title": "Poops by weekday",
+        "file": "poops_by_weekday.png",
+        "alt": "Poops by weekday"
+    },
     {
         "section": "Monthly patterns",
         "title": "Poops by month",
@@ -462,29 +501,23 @@ plots = [
         "alt": "Poops by hour of day"
     },
     {
-        "section": "Timing patterns",
-        "title": "Poops by weekday",
-        "file": "poops_by_weekday.png",
-        "alt": "Poops by weekday"
+        "section": "Distributions",
+        "title": "Distribution of daily poop counts",
+        "file": "daily_count_distribution.png",
+        "alt": "Distribution of daily poop counts"
     },
-{
-    "section": "Distributions",
-    "title": "Distribution of daily poop counts",
-    "file": "daily_count_distribution.png",
-    "alt": "Distribution of daily poop counts"
-},
-{
-    "section": "Distributions",
-    "title": "Distribution of time between poops",
-    "file": "time_between_poops_distribution.png",
-    "alt": "Distribution of time between poops"
-},
-{
-    "section": "Distributions",
-    "title": "Distribution of poop quality",
-    "file": "poop_quality_distribution.png",
-    "alt": "Distribution of poop quality"
-}
+    {
+        "section": "Distributions",
+        "title": "Distribution of time between poops",
+        "file": "time_between_poops_distribution.png",
+        "alt": "Distribution of time between poops"
+    },
+    {
+        "section": "Distributions",
+        "title": "Distribution of poop quality",
+        "file": "poop_quality_distribution.png",
+        "alt": "Distribution of poop quality"
+    }
 ]
 
 
