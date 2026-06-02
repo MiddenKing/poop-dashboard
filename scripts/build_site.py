@@ -2,22 +2,28 @@ from pathlib import Path
 import json
 import re
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+
 
 DATA = Path("data/poop_data.csv")
 FIGURES = Path("figures")
 FIGURES.mkdir(exist_ok=True)
 
+
+# Load data
 df = pd.read_csv(DATA)
 
 time_col = [c for c in df.columns if c.lower() == "time"][0]
 value_col = [c for c in df.columns if c.lower() == "value"][0]
 
+
+# Prepare data
 df["datetime"] = pd.to_datetime(df[time_col])
 df["date"] = df["datetime"].dt.floor("D")
 df["hour"] = df["datetime"].dt.hour
 df["weekday"] = df["datetime"].dt.day_name()
+df["month"] = df["datetime"].dt.to_period("M")
+
 df["is_poor"] = df[value_col].eq(0)
 df["is_good"] = df[value_col].eq(1)
 
@@ -28,6 +34,14 @@ weekday_order = [
     "Friday", "Saturday", "Sunday"
 ]
 
+month_range = pd.period_range(
+    df["month"].min(),
+    df["month"].max(),
+    freq="M"
+)
+
+
+# Daily counts
 daily = (
     df.groupby("date")
     .size()
@@ -37,6 +51,8 @@ daily = (
     .rename(columns={"index": "date"})
 )
 
+
+# Summary statistics
 summary = {
     "observations": int(len(df)),
     "days": int(len(daily)),
@@ -152,12 +168,17 @@ plt.tight_layout()
 plt.savefig(FIGURES / "poops_by_weekday.png", dpi=200)
 plt.close()
 
+
 # Plot 4: cumulative poops over time
 daily_cumulative = daily.copy()
 daily_cumulative["cumulative_count"] = daily_cumulative["count"].cumsum()
 
 plt.figure(figsize=(12, 5.5))
-plt.plot(daily_cumulative["date"], daily_cumulative["cumulative_count"], marker="o")
+plt.plot(
+    daily_cumulative["date"],
+    daily_cumulative["cumulative_count"],
+    marker="o"
+)
 plt.title("Cumulative poops over time")
 plt.xlabel("Date")
 plt.ylabel("Cumulative number of poops")
@@ -183,12 +204,14 @@ plt.tight_layout()
 plt.savefig(FIGURES / "daily_count_distribution.png", dpi=200)
 plt.close()
 
+
 # Plot 6: rolling average daily poops
 daily_rolling = daily.copy()
-daily_rolling["rolling_average"] = daily_rolling["count"].rolling(
-    window=7,
-    min_periods=1
-).mean()
+daily_rolling["rolling_average"] = (
+    daily_rolling["count"]
+    .rolling(window=7, min_periods=1)
+    .mean()
+)
 
 plt.figure(figsize=(12, 5.5))
 plt.plot(
@@ -205,15 +228,11 @@ plt.close()
 
 
 # Plot 7: poops by month split by good and poor
-df["month"] = df["datetime"].dt.to_period("M").astype(str)
-
-month_order = sorted(df["month"].unique())
-
 monthly_quality = (
     df.groupby(["month", value_col])
     .size()
     .unstack(fill_value=0)
-    .reindex(month_order, fill_value=0)
+    .reindex(month_range, fill_value=0)
 )
 
 for v in [0, 1]:
@@ -221,11 +240,12 @@ for v in [0, 1]:
         monthly_quality[v] = 0
 
 monthly_quality = monthly_quality[[1, 0]]
+monthly_labels = [str(m) for m in monthly_quality.index]
 
 plt.figure(figsize=(12, 5.5))
-plt.bar(monthly_quality.index, monthly_quality[1], label="Good")
+plt.bar(monthly_labels, monthly_quality[1], label="Good")
 plt.bar(
-    monthly_quality.index,
+    monthly_labels,
     monthly_quality[0],
     bottom=monthly_quality[1],
     label="Poor"
@@ -239,67 +259,93 @@ plt.tight_layout()
 plt.savefig(FIGURES / "poops_by_month.png", dpi=200)
 plt.close()
 
-# List of plots shown on the website
-# To add a new plot later:
-# 1. Save the figure into the figures/ folder
-# 2. Add one new entry to this list
+
+# Website plot list
+# Add future plots here. The website cards and sidebar index are built from this list.
 plots = [
     {
+        "section": "Overview",
         "title": "Cumulative poops over time",
         "file": "cumulative_poops.png",
         "alt": "Cumulative poops over time"
     },
     {
+        "section": "Daily patterns",
         "title": "Daily frequency",
         "file": "daily_frequency.png",
         "alt": "Daily poop frequency"
     },
     {
+        "section": "Daily patterns",
         "title": "Rolling average daily poops",
         "file": "rolling_average_daily_poops.png",
         "alt": "Rolling average daily poops"
     },
     {
+        "section": "Monthly patterns",
         "title": "Poops by month",
         "file": "poops_by_month.png",
         "alt": "Poops by month"
     },
     {
+        "section": "Timing patterns",
         "title": "Hour of day",
         "file": "hour_of_day.png",
         "alt": "Poops by hour of day"
     },
     {
+        "section": "Timing patterns",
         "title": "Poops by weekday",
         "file": "poops_by_weekday.png",
         "alt": "Poops by weekday"
     },
     {
+        "section": "Distributions",
         "title": "Distribution of daily poop counts",
         "file": "daily_count_distribution.png",
         "alt": "Distribution of daily poop counts"
     }
 ]
 
+
 def make_anchor(text):
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
 
-nav_links = "\n".join(
-    f"""    <a href="#{make_anchor(plot["title"])}">{plot["title"]}</a>"""
-    for plot in plots
-)
+sections = []
+
+for plot in plots:
+    if plot["section"] not in sections:
+        sections.append(plot["section"])
+
+
+nav_links = ""
+
+for section in sections:
+    nav_links += f"""
+    <div class="nav-section">
+      <h3>{section}</h3>
+"""
+
+    for plot in plots:
+        if plot["section"] == section:
+            nav_links += f"""      <a href="#{make_anchor(plot['title'])}">{plot['title']}</a>
+"""
+
+    nav_links += """    </div>
+"""
 
 
 plot_cards = "\n".join(
     f"""
-  <div class="plot-card" id="{make_anchor(plot["title"])}">
-    <h2>{plot["title"]}</h2>
-    <img src="figures/{plot["file"]}" alt="{plot["alt"]}">
+  <div class="plot-card" id="{make_anchor(plot['title'])}">
+    <h2>{plot['title']}</h2>
+    <img src="figures/{plot['file']}" alt="{plot['alt']}">
   </div>
 """
     for plot in plots
 )
+
 
 # Build HTML
 html = f"""<!DOCTYPE html>
@@ -308,8 +354,12 @@ html = f"""<!DOCTYPE html>
   <meta charset="UTF-8">
   <title>The Poop Observatory</title>
   <style>
+    html {{
+      scroll-behavior: smooth;
+    }}
+
     body {{
-      max-width: 1000px;
+      max-width: 1250px;
       margin: auto;
       font-family: Arial, sans-serif;
       line-height: 1.5;
@@ -327,13 +377,9 @@ html = f"""<!DOCTYPE html>
       color: #555;
     }}
 
-    html {{
-      scroll-behavior: smooth;
-    }}
-
     .page-layout {{
       display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
+      grid-template-columns: 230px minmax(0, 1fr);
       gap: 25px;
       align-items: start;
     }}
@@ -355,6 +401,22 @@ html = f"""<!DOCTYPE html>
       color: #555;
     }}
 
+    .nav-section {{
+      margin-bottom: 18px;
+    }}
+
+    .nav-section h3 {{
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #777;
+      margin: 12px 0 6px 0;
+    }}
+
+    .nav-section:first-of-type h3 {{
+      margin-top: 0;
+    }}
+
     .sidebar a {{
       display: block;
       color: #222;
@@ -370,16 +432,6 @@ html = f"""<!DOCTYPE html>
 
     .content {{
       min-width: 0;
-    }}
-
-    @media (max-width: 850px) {{
-      .page-layout {{
-        grid-template-columns: 1fr;
-      }}
-
-      .sidebar {{
-        position: static;
-      }}
     }}
 
     .statbox {{
@@ -431,6 +483,7 @@ html = f"""<!DOCTYPE html>
       border-radius: 12px;
       padding: 18px;
       margin-bottom: 35px;
+      scroll-margin-top: 20px;
     }}
 
     .plot-card h2 {{
@@ -444,6 +497,16 @@ html = f"""<!DOCTYPE html>
       color: #777;
       margin-top: 40px;
       font-size: 0.9rem;
+    }}
+
+    @media (max-width: 850px) {{
+      .page-layout {{
+        grid-template-columns: 1fr;
+      }}
+
+      .sidebar {{
+        position: static;
+      }}
     }}
   </style>
 </head>
