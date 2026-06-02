@@ -445,11 +445,16 @@ quality_counts = pd.Series({
     "Poor": int(df["is_poor"].sum())
 })
 
+quality_colours = {
+    "Good": GOOD_COLOR,
+    "Poor": POOR_COLOR
+}
+
 plt.figure(figsize=(12, 5.5))
 plt.bar(
     quality_counts.index,
     quality_counts.values,
-    color=[GOOD_COLOR, POOR_COLOR]
+    color=[quality_colours[label] for label in quality_counts.index]
 )
 plt.title("Distribution of poop quality")
 plt.xlabel("Poop quality")
