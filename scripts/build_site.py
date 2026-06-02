@@ -188,6 +188,11 @@ plt.close()
 # 2. Add one new entry to this list
 plots = [
     {
+        "title": "Cumulative poops over time",
+        "file": "cumulative_poops.png",
+        "alt": "Cumulative poops over time"
+    },
+    {
         "title": "Daily frequency",
         "file": "daily_frequency.png",
         "alt": "Daily poop frequency"
@@ -201,11 +206,6 @@ plots = [
         "title": "Poops by weekday",
         "file": "poops_by_weekday.png",
         "alt": "Poops by weekday"
-    },
-    {
-        "title": "Cumulative poops over time",
-        "file": "cumulative_poops.png",
-        "alt": "Cumulative poops over time"
     },
     {
         "title": "Distribution of daily poop counts",
