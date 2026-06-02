@@ -1,10 +1,10 @@
-html = f"""<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>The Poop Observatory</title>
+  <title>The Anonymous Poop Observatory</title>
   <style>
-    body {{
+    body {
       max-width: 1000px;
       margin: auto;
       font-family: Arial, sans-serif;
@@ -12,38 +12,38 @@ html = f"""<!DOCTYPE html>
       padding: 20px;
       background: #fafafa;
       color: #222;
-    }}
-    h1, h2 {{
+    }
+    h1, h2 {
       text-align: center;
-    }}
-    .subtitle {{
+    }
+    .subtitle {
       text-align: center;
       color: #555;
-    }}
-    .statbox {{
+    }
+    .statbox {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 15px;
       margin: 25px 0;
-    }}
-    .stat {{
+    }
+    .stat {
       background: white;
       border: 1px solid #ddd;
       border-radius: 12px;
       padding: 15px;
       text-align: center;
-    }}
-    .stat h3 {{
+    }
+    .stat h3 {
       margin-bottom: 5px;
       font-size: 1rem;
       color: #555;
-    }}
-    .stat p {{
+    }
+    .stat p {
       font-size: 1.8rem;
       font-weight: bold;
       margin: 0;
-    }}
-    img {{
+    }
+    img {
       max-width: 100%;
       display: block;
       margin: 20px auto 45px auto;
@@ -51,68 +51,79 @@ html = f"""<!DOCTYPE html>
       border: 1px solid #ddd;
       border-radius: 12px;
       padding: 8px;
-    }}
-    footer {{
+    }
+    footer {
       text-align: center;
       color: #777;
       margin-top: 40px;
       font-size: 0.9rem;
-    }}
+    }
   </style>
 </head>
 <body>
 
-<h1>The Poop Observatory</h1>
+<h1>The Anonymous Poop Observatory</h1>
 <p class="subtitle">Automatically generated from anonymised raw poop data.</p>
 
 <div class="statbox">
   <div class="stat">
     <h3>Total observations</h3>
-    <p>{summary["observations"]}</p>
+    <p>238</p>
   </div>
+
   <div class="stat">
     <h3>Days covered</h3>
-    <p>{summary["days"]}</p>
+    <p>148</p>
   </div>
+
   <div class="stat">
     <h3>Days with poop</h3>
-    <p>{summary["days_with_poop"]}</p>
+    <p>141</p>
   </div>
+
   <div class="stat">
     <h3>Zero-poop days</h3>
-    <p>{summary["zero_poop_days"]}</p>
+    <p>7</p>
   </div>
+
   <div class="stat">
     <h3>Average per day</h3>
-    <p>{summary["average_per_day"]}</p>
+    <p>1.61</p>
   </div>
+
   <div class="stat">
     <h3>Maximum in one day</h3>
-    <p>{summary["max_per_day"]}</p>
+    <p>4</p>
   </div>
+
   <div class="stat">
     <h3>Good poops</h3>
-    <p>{summary["good"]}</p>
+    <p>214</p>
   </div>
+
   <div class="stat">
     <h3>Poor poops</h3>
-    <p>{summary["poor"]}</p>
+    <p>24</p>
   </div>
+
   <div class="stat">
     <h3>Good poop rate</h3>
-    <p>{summary["good_rate"]}%</p>
+    <p>89.9%</p>
   </div>
+
   <div class="stat">
     <h3>Poor poop rate</h3>
-    <p>{summary["poor_rate"]}%</p>
+    <p>10.1%</p>
   </div>
+
   <div class="stat">
     <h3>Most common hour</h3>
-    <p>{summary["most_common_hour"]}:00</p>
+    <p>8:00</p>
   </div>
+
   <div class="stat">
     <h3>Earliest / latest hour</h3>
-    <p>{summary["earliest_hour"]}:00–{summary["latest_hour"]}:00</p>
+    <p>0:00–23:00</p>
   </div>
 </div>
 
@@ -131,4 +142,3 @@ html = f"""<!DOCTYPE html>
 
 </body>
 </html>
-"""
