@@ -1,6 +1,8 @@
 from pathlib import Path
 import json
 import re
+import calendar
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -241,22 +243,169 @@ for v in [0, 1]:
 
 monthly_quality = monthly_quality[[1, 0]]
 monthly_labels = [str(m) for m in monthly_quality.index]
+monthly_x = np.arange(len(monthly_labels))
 
 plt.figure(figsize=(12, 5.5))
-plt.bar(monthly_labels, monthly_quality[1], label="Good")
+plt.bar(monthly_x, monthly_quality[1].values, label="Good")
 plt.bar(
-    monthly_labels,
-    monthly_quality[0],
-    bottom=monthly_quality[1],
+    monthly_x,
+    monthly_quality[0].values,
+    bottom=monthly_quality[1].values,
     label="Poor"
 )
 plt.title("Poops by month")
 plt.xlabel("Month")
 plt.ylabel("Number of poops")
-plt.xticks(rotation=30, ha="right")
+plt.xticks(monthly_x, monthly_labels, rotation=30, ha="right")
 plt.legend()
 plt.tight_layout()
 plt.savefig(FIGURES / "poops_by_month.png", dpi=200)
+plt.close()
+
+
+# Plot 8: poop calendar
+calendar_data = daily.copy()
+calendar_data["weekday_num"] = calendar_data["date"].dt.weekday
+calendar_data["week"] = calendar_data["date"].dt.isocalendar().week.astype(int)
+calendar_data["year"] = calendar_data["date"].dt.isocalendar().year.astype(int)
+
+calendar_data["year_week"] = (
+    calendar_data["year"].astype(str)
+    + "-"
+    + calendar_data["week"].astype(str).str.zfill(2)
+)
+
+week_order = calendar_data["year_week"].drop_duplicates().tolist()
+week_lookup = {week: i for i, week in enumerate(week_order)}
+
+calendar_grid = np.full((7, len(week_order)), np.nan)
+
+for _, row in calendar_data.iterrows():
+    week_index = week_lookup[row["year_week"]]
+    weekday_index = int(row["weekday_num"])
+    calendar_grid[weekday_index, week_index] = row["count"]
+
+plt.figure(figsize=(14, 4.8))
+plt.imshow(calendar_grid, aspect="auto", interpolation="nearest")
+plt.title("Poop calendar")
+plt.xlabel("Week")
+plt.ylabel("Day of week")
+plt.yticks(range(7), ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
+
+week_labels = []
+week_positions = []
+
+for i, week in enumerate(week_order):
+    if i == 0 or week.endswith("-01") or i % 4 == 0:
+        week_labels.append(week)
+        week_positions.append(i)
+
+plt.xticks(week_positions, week_labels, rotation=45, ha="right")
+cbar = plt.colorbar()
+cbar.set_label("Poops per day")
+plt.tight_layout()
+plt.savefig(FIGURES / "poop_calendar.png", dpi=200)
+plt.close()
+
+
+# Plot 9: poop streaks
+streak_data = daily.copy()
+streak_data["has_poop"] = streak_data["count"] > 0
+
+streaks = []
+current_start = None
+current_length = 0
+
+for _, row in streak_data.iterrows():
+    if row["has_poop"]:
+        if current_start is None:
+            current_start = row["date"]
+            current_length = 1
+        else:
+            current_length += 1
+    else:
+        if current_start is not None:
+            streaks.append({
+                "start": current_start,
+                "end": previous_date,
+                "length": current_length
+            })
+            current_start = None
+            current_length = 0
+
+    previous_date = row["date"]
+
+if current_start is not None:
+    streaks.append({
+        "start": current_start,
+        "end": previous_date,
+        "length": current_length
+    })
+
+streak_df = pd.DataFrame(streaks)
+
+plt.figure(figsize=(12, 5.5))
+
+if not streak_df.empty:
+    streak_labels = [
+        f"{row['start'].strftime('%Y-%m-%d')} to {row['end'].strftime('%Y-%m-%d')}"
+        for _, row in streak_df.iterrows()
+    ]
+
+    streak_x = np.arange(len(streak_df))
+
+    plt.bar(streak_x, streak_df["length"])
+    plt.xticks(streak_x, streak_labels, rotation=45, ha="right")
+    plt.ylabel("Consecutive days with poop")
+else:
+    plt.text(
+        0.5,
+        0.5,
+        "No poop streaks found",
+        ha="center",
+        va="center",
+        transform=plt.gca().transAxes
+    )
+    plt.xticks([])
+    plt.yticks([])
+
+plt.title("Poop streaks")
+plt.xlabel("Streak")
+plt.tight_layout()
+plt.savefig(FIGURES / "poop_streaks.png", dpi=200)
+plt.close()
+
+
+# Plot 10: poop clock
+clock_counts = (
+    df.groupby("hour")
+    .size()
+    .reindex(range(24), fill_value=0)
+)
+
+angles = np.linspace(0, 2 * np.pi, 24, endpoint=False)
+width = 2 * np.pi / 24
+
+plt.figure(figsize=(8, 8))
+ax = plt.subplot(111, polar=True)
+
+ax.bar(
+    angles,
+    clock_counts.values,
+    width=width,
+    align="edge"
+)
+
+ax.set_theta_zero_location("N")
+ax.set_theta_direction(-1)
+
+ax.set_xticks(np.linspace(0, 2 * np.pi, 24, endpoint=False))
+ax.set_xticklabels([str(h) for h in range(24)])
+
+ax.set_title("Poop clock", pad=25)
+ax.set_ylabel("Number of poops")
+plt.tight_layout()
+plt.savefig(FIGURES / "poop_clock.png", dpi=200)
 plt.close()
 
 
@@ -277,6 +426,18 @@ plots = [
     },
     {
         "section": "Daily patterns",
+        "title": "Poop calendar",
+        "file": "poop_calendar.png",
+        "alt": "Poop calendar"
+    },
+    {
+        "section": "Daily patterns",
+        "title": "Poop streaks",
+        "file": "poop_streaks.png",
+        "alt": "Poop streaks"
+    },
+    {
+        "section": "Daily patterns",
         "title": "Rolling average daily poops",
         "file": "rolling_average_daily_poops.png",
         "alt": "Rolling average daily poops"
@@ -292,6 +453,12 @@ plots = [
         "title": "Hour of day",
         "file": "hour_of_day.png",
         "alt": "Poops by hour of day"
+    },
+    {
+        "section": "Timing patterns",
+        "title": "Poop clock",
+        "file": "poop_clock.png",
+        "alt": "Poop clock"
     },
     {
         "section": "Timing patterns",
