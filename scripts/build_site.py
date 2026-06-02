@@ -456,12 +456,6 @@ plots = [
     },
     {
         "section": "Timing patterns",
-        "title": "Poop clock",
-        "file": "poop_clock.png",
-        "alt": "Poop clock"
-    },
-    {
-        "section": "Timing patterns",
         "title": "Poops by weekday",
         "file": "poops_by_weekday.png",
         "alt": "Poops by weekday"
