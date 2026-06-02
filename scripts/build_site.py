@@ -13,8 +13,8 @@ FIGURES.mkdir(exist_ok=True)
 
 
 # Colours used consistently across the whole site
-GOOD_COLOR = "#4CAF50"
-POOR_COLOR = "#E57373"
+GOOD_COLOR = "#1f77b4"  # Good = blue
+POOR_COLOR = "#ff7f0e"  # Poor = orange
 
 
 # Load data
@@ -467,28 +467,38 @@ weekly_quality = (
     .reindex(week_range, fill_value=0)
 )
 
-for v in [0, 1]:
-    if v not in weekly_quality.columns:
-        weekly_quality[v] = 0
+# Force consistent quality columns
+weekly_quality = weekly_quality.rename(columns={
+    1: "Good",
+    0: "Poor"
+})
 
-weekly_quality = weekly_quality[[1, 0]]
+for col in ["Good", "Poor"]:
+    if col not in weekly_quality.columns:
+        weekly_quality[col] = 0
+
+weekly_quality = weekly_quality[["Good", "Poor"]]
+
 weekly_labels = [d.strftime("%Y-%m-%d") for d in weekly_quality.index]
 weekly_x = np.arange(len(weekly_labels))
 
 plt.figure(figsize=(14, 5.8))
+
 plt.bar(
     weekly_x,
-    weekly_quality[1].values,
+    weekly_quality["Good"].values,
     label="Good",
     color=GOOD_COLOR
 )
+
 plt.bar(
     weekly_x,
-    weekly_quality[0].values,
-    bottom=weekly_quality[1].values,
+    weekly_quality["Poor"].values,
+    bottom=weekly_quality["Good"].values,
     label="Poor",
     color=POOR_COLOR
 )
+
 plt.title("Weekly poop totals over time")
 plt.xlabel("Week starting")
 plt.ylabel("Number of poops")
@@ -502,95 +512,6 @@ plt.legend()
 plt.tight_layout()
 plt.savefig(FIGURES / "weekly_totals_over_time.png", dpi=200)
 plt.close()
-
-
-# Plot 13: best and worst poop weeks
-weekly_summary = weekly_quality.copy()
-weekly_summary["good"] = weekly_summary[1]
-weekly_summary["poor"] = weekly_summary[0]
-weekly_summary["total"] = weekly_summary["good"] + weekly_summary["poor"]
-weekly_summary["week_start"] = weekly_summary.index
-weekly_summary["week_label"] = weekly_summary["week_start"].dt.strftime("%Y-%m-%d")
-
-if not weekly_summary.empty:
-    n_weeks = min(5, len(weekly_summary))
-
-    poopiest = (
-        weekly_summary
-        .sort_values(["total", "good"], ascending=[False, False])
-        .head(n_weeks)
-        .copy()
-    )
-
-    quietest = (
-        weekly_summary
-        .sort_values(["total", "good"], ascending=[True, True])
-        .head(n_weeks)
-        .copy()
-    )
-
-    poopiest["group"] = "Poopiest"
-    quietest["group"] = "Quietest"
-
-    leaderboard = pd.concat([quietest, poopiest], ignore_index=True)
-    leaderboard["label"] = leaderboard["group"] + ": week of " + leaderboard["week_label"]
-
-    # Sort for nicer horizontal plotting
-    leaderboard = leaderboard.sort_values(
-        ["group", "total"],
-        ascending=[True, True]
-    )
-
-    plt.figure(figsize=(13, 7))
-    y_pos = np.arange(len(leaderboard))
-
-    plt.barh(
-        y_pos,
-        leaderboard["good"],
-        label="Good",
-        color=GOOD_COLOR
-    )
-    plt.barh(
-        y_pos,
-        leaderboard["poor"],
-        left=leaderboard["good"],
-        label="Poor",
-        color=POOR_COLOR
-    )
-
-    for i, (_, row) in enumerate(leaderboard.iterrows()):
-        plt.text(
-            row["total"] + 0.05,
-            i,
-            str(int(row["total"])),
-            va="center",
-            fontsize=9
-        )
-
-    plt.yticks(y_pos, leaderboard["label"])
-    plt.xlabel("Number of poops")
-    plt.ylabel("Week")
-    plt.title("Best and worst poop weeks")
-    plt.legend()
-    plt.tight_layout()
-else:
-    plt.figure(figsize=(12, 5.5))
-    plt.text(
-        0.5,
-        0.5,
-        "No weekly data found",
-        ha="center",
-        va="center",
-        transform=plt.gca().transAxes
-    )
-    plt.xticks([])
-    plt.yticks([])
-    plt.title("Best and worst poop weeks")
-    plt.tight_layout()
-
-plt.savefig(FIGURES / "best_and_worst_poop_weeks.png", dpi=200)
-plt.close()
-
 
 # Website plot list
 # Add future plots here. The website cards and sidebar index are built from this list.
