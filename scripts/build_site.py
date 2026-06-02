@@ -182,6 +182,62 @@ plt.tight_layout()
 plt.savefig(FIGURES / "daily_count_distribution.png", dpi=200)
 plt.close()
 
+# Plot 6: rolling average daily poops
+daily_rolling = daily.copy()
+daily_rolling["rolling_average"] = daily_rolling["count"].rolling(
+    window=7,
+    min_periods=1
+).mean()
+
+plt.figure(figsize=(12, 5.5))
+plt.plot(
+    daily_rolling["date"],
+    daily_rolling["rolling_average"],
+    marker="o"
+)
+plt.title("Rolling average daily poops")
+plt.xlabel("Date")
+plt.ylabel("7-day rolling average")
+plt.tight_layout()
+plt.savefig(FIGURES / "rolling_average_daily_poops.png", dpi=200)
+plt.close()
+
+
+# Plot 7: poops by month split by good and poor
+df["month"] = df["datetime"].dt.to_period("M").astype(str)
+
+month_order = sorted(df["month"].unique())
+
+monthly_quality = (
+    df.groupby(["month", value_col])
+    .size()
+    .unstack(fill_value=0)
+    .reindex(month_order, fill_value=0)
+)
+
+for v in [0, 1]:
+    if v not in monthly_quality.columns:
+        monthly_quality[v] = 0
+
+monthly_quality = monthly_quality[[1, 0]]
+
+plt.figure(figsize=(12, 5.5))
+plt.bar(monthly_quality.index, monthly_quality[1], label="Good")
+plt.bar(
+    monthly_quality.index,
+    monthly_quality[0],
+    bottom=monthly_quality[1],
+    label="Poor"
+)
+plt.title("Poops by month")
+plt.xlabel("Month")
+plt.ylabel("Number of poops")
+plt.xticks(rotation=30, ha="right")
+plt.legend()
+plt.tight_layout()
+plt.savefig(FIGURES / "poops_by_month.png", dpi=200)
+plt.close()
+
 # List of plots shown on the website
 # To add a new plot later:
 # 1. Save the figure into the figures/ folder
@@ -198,9 +254,14 @@ plots = [
         "alt": "Daily poop frequency"
     },
     {
-        "title": "Distribution of daily poop counts",
-        "file": "daily_count_distribution.png",
-        "alt": "Distribution of daily poop counts"
+        "title": "Rolling average daily poops",
+        "file": "rolling_average_daily_poops.png",
+        "alt": "Rolling average daily poops"
+    },
+    {
+        "title": "Poops by month",
+        "file": "poops_by_month.png",
+        "alt": "Poops by month"
     },
     {
         "title": "Hour of day",
@@ -211,6 +272,11 @@ plots = [
         "title": "Poops by weekday",
         "file": "poops_by_weekday.png",
         "alt": "Poops by weekday"
+    },
+    {
+        "title": "Distribution of daily poop counts",
+        "file": "daily_count_distribution.png",
+        "alt": "Distribution of daily poop counts"
     }
 ]
 
