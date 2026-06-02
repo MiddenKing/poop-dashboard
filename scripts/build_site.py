@@ -299,7 +299,6 @@ plt.tight_layout()
 plt.savefig(FIGURES / "poops_by_month.png", dpi=200)
 plt.close()
 
-
 # Plot 8: poop calendar
 calendar_data = daily.copy()
 calendar_data["weekday_num"] = calendar_data["date"].dt.weekday
@@ -518,6 +517,72 @@ plt.tight_layout()
 plt.savefig(FIGURES / "weekly_totals_over_time.png", dpi=200)
 plt.close()
 
+# Plot 13: rolling average weekly poops
+date_range = pd.date_range(df["date"].min(), df["date"].max(), freq="D")
+
+daily = (
+    df.groupby("date")
+    .size()
+    .reindex(date_range, fill_value=0)
+    .rename("count")
+    .reset_index()
+    .rename(columns={"index": "date"})
+)
+
+daily["rolling_weekly_average"] = (
+    daily["count"]
+    .rolling(window=7, min_periods=1)
+    .mean()
+)
+
+plt.figure(figsize=(12, 5.5))
+
+plt.plot(
+    daily["date"],
+    daily["rolling_weekly_average"],
+    marker="o"
+)
+
+plt.title("Rolling average weekly poops")
+plt.xlabel("Date")
+plt.ylabel("7-day rolling average")
+plt.tight_layout()
+plt.savefig(FIGURES / "rolling_average_weekly_poops.png", dpi=200)
+plt.close()
+
+# Plot 15: rolling average monthly poops
+date_range = pd.date_range(df["date"].min(), df["date"].max(), freq="D")
+
+daily = (
+    df.groupby("date")
+    .size()
+    .reindex(date_range, fill_value=0)
+    .rename("count")
+    .reset_index()
+    .rename(columns={"index": "date"})
+)
+
+daily["rolling_monthly_average"] = (
+    daily["count"]
+    .rolling(window=30, min_periods=1)
+    .mean()
+)
+
+plt.figure(figsize=(12, 5.5))
+
+plt.plot(
+    daily["date"],
+    daily["rolling_monthly_average"],
+    marker="o"
+)
+
+plt.title("Rolling average monthly poops")
+plt.xlabel("Date")
+plt.ylabel("30-day rolling average")
+plt.tight_layout()
+plt.savefig(FIGURES / "rolling_average_monthly_poops.png", dpi=200)
+plt.close()
+
 # Website plot list
 # Add future plots here. The website cards and sidebar index are built from this list.
 plots = [
@@ -551,24 +616,48 @@ plots = [
         "file": "rolling_average_daily_poops.png",
         "alt": "Rolling average daily poops"
     },
-    {
-        "section": "Weekly patterns",
-        "title": "Poops by weekday",
-        "file": "poops_by_weekday.png",
-        "alt": "Poops by weekday"
-    },
-    {
-        "section": "Weekly patterns",
-        "title": "Weekly poop totals over time",
-        "file": "weekly_totals_over_time.png",
-        "alt": "Weekly poop totals over time"
-    },
-    {
-        "section": "Monthly patterns",
-        "title": "Poops by month",
-        "file": "poops_by_month.png",
-        "alt": "Poops by month"
-    },
+{
+    "section": "Weekly patterns",
+    "title": "Poops by weekday",
+    "file": "poops_by_weekday.png",
+    "alt": "Poops by weekday"
+},
+{
+    "section": "Weekly patterns",
+    "title": "Weekly poop totals over time",
+    "file": "weekly_totals_over_time.png",
+    "alt": "Weekly poop totals over time"
+},
+{
+    "section": "Weekly patterns",
+    "title": "Rolling average weekly poops",
+    "file": "rolling_average_weekly_poops.png",
+    "alt": "Rolling average weekly poops"
+},
+{
+    "section": "Weekly patterns",
+    "title": "Best and worst poop weeks",
+    "file": "best_and_worst_poop_weeks.png",
+    "alt": "Best and worst poop weeks"
+},
+{
+    "section": "Monthly patterns",
+    "title": "Poops by month",
+    "file": "poops_by_month.png",
+    "alt": "Poops by month"
+},
+{
+    "section": "Monthly patterns",
+    "title": "Rolling average monthly poops",
+    "file": "rolling_average_monthly_poops.png",
+    "alt": "Rolling average monthly poops"
+},
+{
+    "section": "Monthly patterns",
+    "title": "Best and worst poop months",
+    "file": "best_and_worst_poop_months.png",
+    "alt": "Best and worst poop months"
+},
     {
         "section": "Timing patterns",
         "title": "Hour of day",
