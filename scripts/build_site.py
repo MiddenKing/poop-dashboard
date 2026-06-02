@@ -202,6 +202,24 @@ html = f"""<!DOCTYPE html>
     <h3>Most common hour</h3>
     <p>{summary["most_common_hour"]}:00</p>
   </div>
+  <div class="stat">
+  <h3>Good poops</h3>
+  <p>{summary["good"]}</p>
+</div>
+
+<div class="stat">
+  <h3>Poor poops</h3>
+  <p>{summary["poor"]}</p>
+</div>
+
+<div class="stat">
+  <h3>Days with poop</h3>
+  <p>{summary["days_with_poop"]}</p>
+</div>
+
+<div class="stat">
+  <h3>Zero-poop days</h3>
+  <p>{summary["zero_poop_days"]}</p>
 </div>
 
 <h2>Daily frequency</h2>
