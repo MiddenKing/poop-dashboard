@@ -50,47 +50,67 @@ summary = {
 
 Path("summary.json").write_text(json.dumps(summary, indent=2))
 
-# Plot 1: daily frequency
+# Plot 1: daily frequency split by good and poor
+daily_quality = (
+    df.groupby(["date", value_col])
+    .size()
+    .unstack(fill_value=0)
+    .reindex(date_range, fill_value=0)
+)
+
+for v in [0, 1]:
+    if v not in daily_quality.columns:
+        daily_quality[v] = 0
+
+daily_quality = daily_quality[[1, 0]]
+
 plt.figure(figsize=(9, 4.5))
-plt.bar(daily["date"], daily["count"], width=0.9)
+plt.bar(daily_quality.index, daily_quality[1], width=0.9, label="Good")
+plt.bar(
+    daily_quality.index,
+    daily_quality[0],
+    width=0.9,
+    bottom=daily_quality[1],
+    label="Poor"
+)
 plt.title("Daily poop frequency")
 plt.xlabel("Date")
 plt.ylabel("Poops per day")
+plt.legend()
 plt.tight_layout()
 plt.savefig(FIGURES / "daily_frequency.png", dpi=200)
 plt.close()
 
-# Plot 2: hour of day
-hourly = df.groupby("hour").size().reindex(range(24), fill_value=0)
 
-plt.figure(figsize=(9, 4.5))
-plt.bar(hourly.index, hourly.values)
-plt.title("Poops by hour of day")
-plt.xlabel("Hour of day")
-plt.ylabel("Number of poops")
-plt.xticks(range(0, 24, 2))
-plt.tight_layout()
-plt.savefig(FIGURES / "hour_of_day.png", dpi=200)
-plt.close()
+# Plot 2: poops by hour split by good and poor
+hourly_quality = (
+    df.groupby(["hour", value_col])
+    .size()
+    .unstack(fill_value=0)
+    .reindex(range(24), fill_value=0)
+)
 
-# Plot 3: good vs poor by hour
-quality_hour = df.groupby(["hour", value_col]).size().unstack(fill_value=0)
 for v in [0, 1]:
-    if v not in quality_hour.columns:
-        quality_hour[v] = 0
+    if v not in hourly_quality.columns:
+        hourly_quality[v] = 0
 
-quality_hour = quality_hour.reindex(range(24), fill_value=0)
+hourly_quality = hourly_quality[[1, 0]]
 
 plt.figure(figsize=(9, 4.5))
-plt.bar(quality_hour.index, quality_hour[1], label="Good")
-plt.bar(quality_hour.index, quality_hour[0], bottom=quality_hour[1], label="Poor")
-plt.title("Good vs poor poops by hour")
+plt.bar(hourly_quality.index, hourly_quality[1], label="Good")
+plt.bar(
+    hourly_quality.index,
+    hourly_quality[0],
+    bottom=hourly_quality[1],
+    label="Poor"
+)
+plt.title("Poops by hour of day")
 plt.xlabel("Hour of day")
 plt.ylabel("Number of poops")
 plt.xticks(range(0, 24, 2))
 plt.legend()
 plt.tight_layout()
-plt.savefig(FIGURES / "good_vs_poor_by_hour.png", dpi=200)
+plt.savefig(FIGURES / "hour_of_day.png", dpi=200)
 plt.close()
 
 # Build HTML
