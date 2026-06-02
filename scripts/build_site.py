@@ -35,6 +35,7 @@ summary = {
     "observations": int(len(df)),
     "days": int(len(daily)),
     "average_per_day": round(len(df) / len(daily), 2),
+    "median_per_day": float(daily["count"].median()),
     "good": int(df["is_good"].sum()),
     "poor": int(df["is_poor"].sum()),
     "good_rate": round(df["is_good"].mean() * 100, 1),
@@ -172,33 +173,13 @@ html = f"""<!DOCTYPE html>
   </div>
 
   <div class="stat">
-    <h3>Days with poop</h3>
-    <p>{summary["days_with_poop"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Zero-poop days</h3>
-    <p>{summary["zero_poop_days"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Average per day</h3>
+    <h3>Average/day</h3>
     <p>{summary["average_per_day"]}</p>
   </div>
 
   <div class="stat">
-    <h3>Maximum in one day</h3>
-    <p>{summary["max_per_day"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Good poops</h3>
-    <p>{summary["good"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Poor poops</h3>
-    <p>{summary["poor"]}</p>
+    <h3>Median/day</h3>
+    <p>{summary["median_per_day"]}</p>
   </div>
 
   <div class="stat">
@@ -212,13 +193,13 @@ html = f"""<!DOCTYPE html>
   </div>
 
   <div class="stat">
-    <h3>Most common hour</h3>
-    <p>{summary["most_common_hour"]}:00</p>
+    <h3>Maximum/day</h3>
+    <p>{summary["max_per_day"]}</p>
   </div>
 
   <div class="stat">
-    <h3>Earliest / latest hour</h3>
-    <p>{summary["earliest_hour"]}:00–{summary["latest_hour"]}:00</p>
+    <h3>Most common hour</h3>
+    <p>{summary["most_common_hour"]}:00</p>
   </div>
 </div>
 
