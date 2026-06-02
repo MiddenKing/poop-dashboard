@@ -44,7 +44,7 @@ Path("summary.json").write_text(json.dumps(summary, indent=2))
 
 # Plot 1: daily frequency
 plt.figure(figsize=(9, 4.5))
-plt.plot(daily["date"], daily["count"], marker="o")
+plt.bar(daily["date"], daily["count"], width=0.9)
 plt.title("Daily poop frequency")
 plt.xlabel("Date")
 plt.ylabel("Poops per day")
