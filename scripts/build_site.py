@@ -22,6 +22,11 @@ df["is_good"] = df[value_col].eq(1)
 
 date_range = pd.date_range(df["date"].min(), df["date"].max(), freq="D")
 
+weekday_order = [
+    "Monday", "Tuesday", "Wednesday", "Thursday",
+    "Friday", "Saturday", "Sunday"
+]
+
 daily = (
     df.groupby("date")
     .size()
@@ -50,6 +55,7 @@ summary = {
 
 Path("summary.json").write_text(json.dumps(summary, indent=2))
 
+
 # Plot 1: daily frequency split by good and poor
 daily_quality = (
     df.groupby(["date", value_col])
@@ -64,7 +70,7 @@ for v in [0, 1]:
 
 daily_quality = daily_quality[[1, 0]]
 
-plt.figure(figsize=(9, 4.5))
+plt.figure(figsize=(12, 5.5))
 plt.bar(daily_quality.index, daily_quality[1], width=0.9, label="Good")
 plt.bar(
     daily_quality.index,
@@ -96,7 +102,7 @@ for v in [0, 1]:
 
 hourly_quality = hourly_quality[[1, 0]]
 
-plt.figure(figsize=(9, 4.5))
+plt.figure(figsize=(12, 5.5))
 plt.bar(hourly_quality.index, hourly_quality[1], label="Good")
 plt.bar(
     hourly_quality.index,
@@ -113,7 +119,8 @@ plt.tight_layout()
 plt.savefig(FIGURES / "hour_of_day.png", dpi=200)
 plt.close()
 
-# Plot 3: poops by weekday
+
+# Plot 3: poops by weekday split by good and poor
 weekday_quality = (
     df.groupby(["weekday", value_col])
     .size()
@@ -127,7 +134,7 @@ for v in [0, 1]:
 
 weekday_quality = weekday_quality[[1, 0]]
 
-plt.figure(figsize=(10, 5))
+plt.figure(figsize=(12, 5.5))
 plt.bar(weekday_quality.index, weekday_quality[1], label="Good")
 plt.bar(
     weekday_quality.index,
@@ -141,11 +148,14 @@ plt.ylabel("Number of poops")
 plt.xticks(rotation=30, ha="right")
 plt.legend()
 plt.tight_layout()
-plt.savefig(FIGURES / "good_vs_poor_by_weekday.png", dpi=200)
+plt.savefig(FIGURES / "poops_by_weekday.png", dpi=200)
 plt.close()
 
 
-
+# List of plots shown on the website
+# To add a new plot later:
+# 1. Save the figure into the figures/ folder
+# 2. Add one new entry to this list
 plots = [
     {
         "title": "Daily frequency",
@@ -158,9 +168,9 @@ plots = [
         "alt": "Poops by hour of day"
     },
     {
-        "title": "Good vs poor by weekday",
-        "file": "good_vs_poor_by_weekday.png",
-        "alt": "Good vs poor poops by weekday"
+        "title": "Poops by weekday",
+        "file": "poops_by_weekday.png",
+        "alt": "Poops by weekday"
     }
 ]
 
@@ -173,6 +183,7 @@ plot_cards = "\n".join(
 """
     for plot in plots
 )
+
 
 # Build HTML
 html = f"""<!DOCTYPE html>
