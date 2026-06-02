@@ -638,12 +638,6 @@ plots = [
         "alt": "Weekly poop totals over time"
     },
     {
-        "section": "Weekly patterns",
-        "title": "Best and worst poop weeks",
-        "file": "best_and_worst_poop_weeks.png",
-        "alt": "Best and worst poop weeks"
-    },
-    {
         "section": "Monthly patterns",
         "title": "Poops by month",
         "file": "poops_by_month.png",
