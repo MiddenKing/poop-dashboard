@@ -23,6 +23,61 @@
       color: #555;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
+    .page-layout {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 25px;
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 20px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 15px;
+    }
+
+    .sidebar h2 {
+      text-align: left;
+      font-size: 1rem;
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #555;
+    }
+
+    .sidebar a {
+      display: block;
+      color: #222;
+      text-decoration: none;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+
+    .sidebar a:hover {
+      background: #f0f0f0;
+    }
+
+    .content {
+      min-width: 0;
+    }
+
+    @media (max-width: 850px) {
+      .page-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+      }
+    }
+
     .statbox {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
@@ -159,43 +214,43 @@
 
 <div class="plots">
 
-  <div class="plot-card">
+  <div class="plot-card" id="cumulative-poops-over-time">
     <h2>Cumulative poops over time</h2>
     <img src="figures/cumulative_poops.png" alt="Cumulative poops over time">
   </div>
 
 
-  <div class="plot-card">
+  <div class="plot-card" id="daily-frequency">
     <h2>Daily frequency</h2>
     <img src="figures/daily_frequency.png" alt="Daily poop frequency">
   </div>
 
 
-  <div class="plot-card">
+  <div class="plot-card" id="rolling-average-daily-poops">
     <h2>Rolling average daily poops</h2>
     <img src="figures/rolling_average_daily_poops.png" alt="Rolling average daily poops">
   </div>
 
 
-  <div class="plot-card">
+  <div class="plot-card" id="poops-by-month">
     <h2>Poops by month</h2>
     <img src="figures/poops_by_month.png" alt="Poops by month">
   </div>
 
 
-  <div class="plot-card">
+  <div class="plot-card" id="hour-of-day">
     <h2>Hour of day</h2>
     <img src="figures/hour_of_day.png" alt="Poops by hour of day">
   </div>
 
 
-  <div class="plot-card">
+  <div class="plot-card" id="poops-by-weekday">
     <h2>Poops by weekday</h2>
     <img src="figures/poops_by_weekday.png" alt="Poops by weekday">
   </div>
 
 
-  <div class="plot-card">
+  <div class="plot-card" id="distribution-of-daily-poop-counts">
     <h2>Distribution of daily poop counts</h2>
     <img src="figures/daily_count_distribution.png" alt="Distribution of daily poop counts">
   </div>
