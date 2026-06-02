@@ -2,6 +2,7 @@
   "observations": 238,
   "days": 148,
   "average_per_day": 1.61,
+  "median_per_day": 1.0,
   "good": 214,
   "poor": 24,
   "good_rate": 89.9,
