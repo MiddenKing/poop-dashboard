@@ -4,8 +4,12 @@
   <meta charset="UTF-8">
   <title>The Poop Observatory</title>
   <style>
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
-      max-width: 1000px;
+      max-width: 1250px;
       margin: auto;
       font-family: Arial, sans-serif;
       line-height: 1.5;
@@ -23,13 +27,9 @@
       color: #555;
     }
 
-    html {
-      scroll-behavior: smooth;
-    }
-
     .page-layout {
       display: grid;
-      grid-template-columns: 220px minmax(0, 1fr);
+      grid-template-columns: 230px minmax(0, 1fr);
       gap: 25px;
       align-items: start;
     }
@@ -51,6 +51,22 @@
       color: #555;
     }
 
+    .nav-section {
+      margin-bottom: 18px;
+    }
+
+    .nav-section h3 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #777;
+      margin: 12px 0 6px 0;
+    }
+
+    .nav-section:first-of-type h3 {
+      margin-top: 0;
+    }
+
     .sidebar a {
       display: block;
       color: #222;
@@ -66,16 +82,6 @@
 
     .content {
       min-width: 0;
-    }
-
-    @media (max-width: 850px) {
-      .page-layout {
-        grid-template-columns: 1fr;
-      }
-
-      .sidebar {
-        position: static;
-      }
     }
 
     .statbox {
@@ -127,6 +133,7 @@
       border-radius: 12px;
       padding: 18px;
       margin-bottom: 35px;
+      scroll-margin-top: 20px;
     }
 
     .plot-card h2 {
@@ -141,6 +148,16 @@
       margin-top: 40px;
       font-size: 0.9rem;
     }
+
+    @media (max-width: 850px) {
+      .page-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+      }
+    }
   </style>
 </head>
 <body>
@@ -152,13 +169,34 @@
 
 <nav class="sidebar">
   <h2>Visualisations</h2>
-    <a href="#cumulative-poops-over-time">Cumulative poops over time</a>
-    <a href="#daily-frequency">Daily frequency</a>
-    <a href="#rolling-average-daily-poops">Rolling average daily poops</a>
-    <a href="#poops-by-month">Poops by month</a>
-    <a href="#hour-of-day">Hour of day</a>
-    <a href="#poops-by-weekday">Poops by weekday</a>
-    <a href="#distribution-of-daily-poop-counts">Distribution of daily poop counts</a>
+
+    <div class="nav-section">
+      <h3>Overview</h3>
+      <a href="#cumulative-poops-over-time">Cumulative poops over time</a>
+    </div>
+
+    <div class="nav-section">
+      <h3>Daily patterns</h3>
+      <a href="#daily-frequency">Daily frequency</a>
+      <a href="#rolling-average-daily-poops">Rolling average daily poops</a>
+    </div>
+
+    <div class="nav-section">
+      <h3>Monthly patterns</h3>
+      <a href="#poops-by-month">Poops by month</a>
+    </div>
+
+    <div class="nav-section">
+      <h3>Timing patterns</h3>
+      <a href="#hour-of-day">Hour of day</a>
+      <a href="#poops-by-weekday">Poops by weekday</a>
+    </div>
+
+    <div class="nav-section">
+      <h3>Distributions</h3>
+      <a href="#distribution-of-daily-poop-counts">Distribution of daily poop counts</a>
+    </div>
+
 </nav>
 
 <main class="content">
