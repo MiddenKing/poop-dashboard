@@ -635,12 +635,6 @@ plots = [
     "alt": "Rolling average weekly poops"
 },
 {
-    "section": "Weekly patterns",
-    "title": "Best and worst poop weeks",
-    "file": "best_and_worst_poop_weeks.png",
-    "alt": "Best and worst poop weeks"
-},
-{
     "section": "Monthly patterns",
     "title": "Poops by month",
     "file": "poops_by_month.png",
@@ -651,12 +645,6 @@ plots = [
     "title": "Rolling average monthly poops",
     "file": "rolling_average_monthly_poops.png",
     "alt": "Rolling average monthly poops"
-},
-{
-    "section": "Monthly patterns",
-    "title": "Best and worst poop months",
-    "file": "best_and_worst_poop_months.png",
-    "alt": "Best and worst poop months"
 },
     {
         "section": "Timing patterns",
