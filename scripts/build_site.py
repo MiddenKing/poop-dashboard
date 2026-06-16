@@ -25,7 +25,26 @@ value_col = [c for c in df.columns if c.lower() == "value"][0]
 
 
 # Prepare data
-df["datetime"] = pd.to_datetime(df[time_col])
+# The raw CSV may contain non-zero-padded timestamps, e.g.
+# 2026-6-16 10:23:3
+# so we parse as mixed-format datetimes instead of relying on one inferred format.
+df["datetime"] = pd.to_datetime(
+    df[time_col].astype(str).str.strip(),
+    format="mixed",
+    errors="coerce"
+)
+
+# Fail loudly if any timestamps could not be parsed
+bad_dates = df[df["datetime"].isna()]
+
+if not bad_dates.empty:
+    print("These rows have timestamps that could not be parsed:")
+    print(bad_dates[[time_col, value_col]])
+    raise ValueError("Some timestamps could not be parsed. Fix parsing before plotting.")
+
+# Always sort by the parsed datetime, never by the raw Time column
+df = df.sort_values("datetime").reset_index(drop=True)
+
 df["date"] = df["datetime"].dt.floor("D")
 df["hour"] = df["datetime"].dt.hour
 df["weekday"] = df["datetime"].dt.day_name()
@@ -38,6 +57,9 @@ df["week_start"] = df["date"] - pd.to_timedelta(df["date"].dt.weekday, unit="D")
 df["week_label"] = df["week_start"].dt.strftime("%Y-%m-%d")
 
 date_range = pd.date_range(df["date"].min(), df["date"].max(), freq="D")
+
+print(f"Dataset runs from {df['date'].min().date()} to {df['date'].max().date()}")
+print(f"Number of June records: {len(df[df['datetime'].dt.month == 6])}")
 
 weekday_order = [
     "Monday", "Tuesday", "Wednesday", "Thursday",
@@ -121,6 +143,7 @@ plt.title("Daily poop frequency")
 plt.xlabel("Date")
 plt.ylabel("Poops per day")
 plt.legend()
+plt.xlim(date_range.min(), date_range.max())
 plt.tight_layout()
 plt.savefig(FIGURES / "daily_frequency.png", dpi=200)
 plt.close()
@@ -215,6 +238,7 @@ plt.plot(
 plt.title("Cumulative poops over time")
 plt.xlabel("Date")
 plt.ylabel("Cumulative number of poops")
+plt.xlim(date_range.min(), date_range.max())
 plt.tight_layout()
 plt.savefig(FIGURES / "cumulative_poops.png", dpi=200)
 plt.close()
@@ -255,6 +279,7 @@ plt.plot(
 plt.title("Rolling average daily poops")
 plt.xlabel("Date")
 plt.ylabel("7-day rolling average")
+plt.xlim(date_range.min(), date_range.max())
 plt.tight_layout()
 plt.savefig(FIGURES / "rolling_average_daily_poops.png", dpi=200)
 plt.close()
@@ -298,6 +323,7 @@ plt.legend()
 plt.tight_layout()
 plt.savefig(FIGURES / "poops_by_month.png", dpi=200)
 plt.close()
+
 
 # Plot 8: poop calendar
 calendar_data = daily.copy()
@@ -471,7 +497,6 @@ weekly_quality = (
     .reindex(week_range, fill_value=0)
 )
 
-# Force consistent quality columns
 weekly_quality = weekly_quality.rename(columns={
     1: "Good",
     0: "Poor"
@@ -517,20 +542,12 @@ plt.tight_layout()
 plt.savefig(FIGURES / "weekly_totals_over_time.png", dpi=200)
 plt.close()
 
+
 # Plot 13: rolling average weekly poops
-date_range = pd.date_range(df["date"].min(), df["date"].max(), freq="D")
+daily_weekly_rolling = daily.copy()
 
-daily = (
-    df.groupby("date")
-    .size()
-    .reindex(date_range, fill_value=0)
-    .rename("count")
-    .reset_index()
-    .rename(columns={"index": "date"})
-)
-
-daily["rolling_weekly_average"] = (
-    daily["count"]
+daily_weekly_rolling["rolling_weekly_average"] = (
+    daily_weekly_rolling["count"]
     .rolling(window=7, min_periods=1)
     .mean()
 )
@@ -538,32 +555,25 @@ daily["rolling_weekly_average"] = (
 plt.figure(figsize=(12, 5.5))
 
 plt.plot(
-    daily["date"],
-    daily["rolling_weekly_average"],
+    daily_weekly_rolling["date"],
+    daily_weekly_rolling["rolling_weekly_average"],
     marker="o"
 )
 
 plt.title("Rolling average weekly poops")
 plt.xlabel("Date")
 plt.ylabel("7-day rolling average")
+plt.xlim(date_range.min(), date_range.max())
 plt.tight_layout()
 plt.savefig(FIGURES / "rolling_average_weekly_poops.png", dpi=200)
 plt.close()
 
-# Plot 15: rolling average monthly poops
-date_range = pd.date_range(df["date"].min(), df["date"].max(), freq="D")
 
-daily = (
-    df.groupby("date")
-    .size()
-    .reindex(date_range, fill_value=0)
-    .rename("count")
-    .reset_index()
-    .rename(columns={"index": "date"})
-)
+# Plot 14: rolling average monthly poops
+daily_monthly_rolling = daily.copy()
 
-daily["rolling_monthly_average"] = (
-    daily["count"]
+daily_monthly_rolling["rolling_monthly_average"] = (
+    daily_monthly_rolling["count"]
     .rolling(window=30, min_periods=1)
     .mean()
 )
@@ -571,17 +581,19 @@ daily["rolling_monthly_average"] = (
 plt.figure(figsize=(12, 5.5))
 
 plt.plot(
-    daily["date"],
-    daily["rolling_monthly_average"],
+    daily_monthly_rolling["date"],
+    daily_monthly_rolling["rolling_monthly_average"],
     marker="o"
 )
 
 plt.title("Rolling average monthly poops")
 plt.xlabel("Date")
 plt.ylabel("30-day rolling average")
+plt.xlim(date_range.min(), date_range.max())
 plt.tight_layout()
 plt.savefig(FIGURES / "rolling_average_monthly_poops.png", dpi=200)
 plt.close()
+
 
 # Website plot list
 # Add future plots here. The website cards and sidebar index are built from this list.
@@ -616,36 +628,36 @@ plots = [
         "file": "rolling_average_daily_poops.png",
         "alt": "Rolling average daily poops"
     },
-{
-    "section": "Weekly patterns",
-    "title": "Poops by weekday",
-    "file": "poops_by_weekday.png",
-    "alt": "Poops by weekday"
-},
-{
-    "section": "Weekly patterns",
-    "title": "Weekly poop totals over time",
-    "file": "weekly_totals_over_time.png",
-    "alt": "Weekly poop totals over time"
-},
-{
-    "section": "Weekly patterns",
-    "title": "Rolling average weekly poops",
-    "file": "rolling_average_weekly_poops.png",
-    "alt": "Rolling average weekly poops"
-},
-{
-    "section": "Monthly patterns",
-    "title": "Poops by month",
-    "file": "poops_by_month.png",
-    "alt": "Poops by month"
-},
-{
-    "section": "Monthly patterns",
-    "title": "Rolling average monthly poops",
-    "file": "rolling_average_monthly_poops.png",
-    "alt": "Rolling average monthly poops"
-},
+    {
+        "section": "Weekly patterns",
+        "title": "Poops by weekday",
+        "file": "poops_by_weekday.png",
+        "alt": "Poops by weekday"
+    },
+    {
+        "section": "Weekly patterns",
+        "title": "Weekly poop totals over time",
+        "file": "weekly_totals_over_time.png",
+        "alt": "Weekly poop totals over time"
+    },
+    {
+        "section": "Weekly patterns",
+        "title": "Rolling average weekly poops",
+        "file": "rolling_average_weekly_poops.png",
+        "alt": "Rolling average weekly poops"
+    },
+    {
+        "section": "Monthly patterns",
+        "title": "Poops by month",
+        "file": "poops_by_month.png",
+        "alt": "Poops by month"
+    },
+    {
+        "section": "Monthly patterns",
+        "title": "Rolling average monthly poops",
+        "file": "rolling_average_monthly_poops.png",
+        "alt": "Rolling average monthly poops"
+    },
     {
         "section": "Timing patterns",
         "title": "Hour of day",
