@@ -378,11 +378,17 @@ def stat_card(label, value, sub=""):
             f'{f"<span>{sub}</span>" if sub else ""}</div>')
 
 
-def card(kicker, title, img, explain, method):
+def card(kicker, title, img, explain, method=""):
+    method_html = (
+        f'<details class="method"><summary>Method</summary><p>{method}</p></details>'
+        if method
+        else ""
+    )
+
     return (f'<div class="card"><p class="kicker">{kicker}</p><h2>{title}</h2>'
             f'<img src="figures/{img}" alt="{title}">'
             f'<div class="explain">{explain}</div>'
-            f'<details class="method"><summary>Method</summary><p>{method}</p></details>'
+            f'{method_html}'
             f'</div>')
 
 
