@@ -347,7 +347,18 @@ a{color:#7fc7e0;}
 .card .kicker{font-family:'IBM Plex Mono',monospace;font-size:0.66rem;text-transform:uppercase;
  letter-spacing:0.09em;color:var(--hi);margin:0 0 10px;}
 .card img{width:100%;display:block;border-radius:8px;}
-.card p.read{color:var(--muted);font-size:0.88rem;margin:12px 2px 0;}
+.card .explain{color:var(--ink);font-size:0.92rem;margin:14px 2px 0;}
+.card .explain b{color:#a9d6e8;font-weight:600;}
+.card details.method{margin:12px 2px 0;border-top:1px solid var(--line);padding-top:8px;}
+.card details.method summary{cursor:pointer;font-family:'IBM Plex Mono',monospace;
+ font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);
+ list-style:none;}
+.card details.method summary::before{content:"\\25B8  ";color:var(--hi);}
+.card details.method[open] summary::before{content:"\\25BE  ";}
+.card details.method p{color:var(--muted);font-size:0.82rem;margin:10px 0 2px;}
+.termnote{font-family:'IBM Plex Mono',monospace;font-size:0.74rem;color:var(--muted);
+ margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
+.termnote b{color:#a9d6e8;font-weight:600;}
 .methods{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 22px;}
 .methods h2{font-family:'Space Grotesk',sans-serif;font-size:1.1rem;margin:0 0 8px;}
 .methods p{font-size:0.85rem;color:var(--muted);margin:6px 0;}
@@ -367,10 +378,12 @@ def stat_card(label, value, sub=""):
             f'{f"<span>{sub}</span>" if sub else ""}</div>')
 
 
-def card(kicker, title, img, read):
+def card(kicker, title, img, explain, method):
     return (f'<div class="card"><p class="kicker">{kicker}</p><h2>{title}</h2>'
             f'<img src="figures/{img}" alt="{title}">'
-            f'<p class="read">{read}</p></div>')
+            f'<div class="explain">{explain}</div>'
+            f'<details class="method"><summary>Method</summary><p>{method}</p></details>'
+            f'</div>')
 
 
 def fmt_clock(h):
@@ -383,13 +396,13 @@ def fmt_p(p):
 
 def build_html(readings, cards_html, methods_html):
     readout = "".join([
-        stat_card("Observations", readings["n"]),
-        stat_card("Baseline", readings["days"], "days"),
-        stat_card("Mean transit", readings["mean_transit"], "circular mean"),
-        stat_card("Phase scatter", f'±{readings["sd_hours"]}', "h (1σ)"),
-        stat_card("Dominant period", f'{readings["period"]}', "h"),
+        stat_card("Observations", readings["n"], "events logged"),
+        stat_card("Baseline", readings["days"], "days observed"),
+        stat_card("Mean transit", readings["mean_transit"], "typical time of day"),
+        stat_card("Phase scatter", f'±{readings["sd_hours"]}', "day-to-day spread (h)"),
+        stat_card("Dominant period", f'{readings["period"]}', "cycle length (h)"),
         stat_card("Signal", readings["signal"], fmt_p(readings["period_p"])),
-        stat_card("Next transit", readings["ephemeris"], "predicted"),
+        stat_card("Next transit", readings["ephemeris"], "predicted time"),
         stat_card("Lunar effect", readings["lunar"], fmt_p(readings["lunar_p"])),
     ])
     return (
@@ -403,7 +416,11 @@ def build_html(readings, cards_html, methods_html):
           "sampled periodic signal and recover its rhythm using standard methods from "
           "chronobiology and time-domain astronomy. A <strong>circadian (24-hour) component</strong> "
           "dominates; weekend phase and lunar illumination are tested and reported as found. "
-          f"Companion frequency dashboard: <a href='{DASHBOARD_LINK}'>index</a>.</p></div>"
+          f"Companion frequency dashboard: <a href='{DASHBOARD_LINK}'>index</a>.</p>"
+          "<p class='termnote'>A note on terms, borrowed from astronomy: <b>transit</b> = a "
+          "typical event's time of day &middot; <b>meridian</b> = the average of those times &middot; "
+          "<b>ephemeris</b> = the predicted time of the next one &middot; <b>phase</b> = where in the "
+          "24-hour cycle something falls.</p></div>"
         + f"<div class='readout'>{readout}</div>"
         + cards_html
         + methods_html
