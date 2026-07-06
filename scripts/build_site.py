@@ -1,984 +1,662 @@
+"""
+The Poop Observatory
+====================
+
+Builds a self-contained static site (index.html + figures/*.png) for GitHub
+Pages from a raw poop log (columns: Time, Value where Value is 1 = good,
+0 = poor). No interactivity, no extra dependencies beyond matplotlib.
+
+What this keeps over the original static version:
+  * A 24-hour polar "dial" as the signature reading of the daily rhythm.
+  * Circular statistics: a regularity score (mean resultant length) plus a
+    Rayleigh test for whether timing is genuinely clustered vs. uniform.
+  * Weekday tests: chi-square for frequency (correctly weighted by how many
+    of each weekday the log actually covers) and a contingency test for
+    whether quality depends on the day.
+  * Poisson and exponential models overlaid on the daily-count and
+    time-between distributions.
+  * A single plot registry, a reusable good/poor split helper, and pure
+    analytics functions kept separate from plotting.
+
+Run:  python generate_dashboard.py
+Needs: pandas, numpy, scipy, matplotlib
+"""
+
 from pathlib import Path
 import json
-import re
-import calendar
+
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+from scipy import stats
 
+import matplotlib
+matplotlib.use("Agg")   # headless: deterministic output, no display needed
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+
+
+# ----------------------------------------------------------------------
+# Config
+# ----------------------------------------------------------------------
 
 DATA = Path("data/poop_data.csv")
 FIGURES = Path("figures")
-FIGURES.mkdir(exist_ok=True)
+OUTPUT = Path("index.html")
+SUMMARY = Path("summary.json")
 
+# Palette: cool instrument paper, one warm signal colour for the anomaly.
+GOOD_COLOR = "#2f6f8f"   # good = deep instrument blue
+POOR_COLOR = "#d98a3d"   # poor = warm amber (the reading you notice)
+INK = "#16233b"
+MUTED = "#5b6b82"
+GRID = "#e4e9ef"
 
-# Colours used consistently across the whole site
-GOOD_COLOR = "#1f77b4"  # Good = blue
-POOR_COLOR = "#ff7f0e"  # Poor = orange
-
-
-# Load data
-df = pd.read_csv(DATA)
-
-time_col = [c for c in df.columns if c.lower() == "time"][0]
-value_col = [c for c in df.columns if c.lower() == "value"][0]
-
-
-# Prepare data
-# The raw CSV may contain non-zero-padded timestamps, e.g.
-# 2026-6-16 10:23:3
-# so we parse as mixed-format datetimes instead of relying on one inferred format.
-df["datetime"] = pd.to_datetime(
-    df[time_col].astype(str).str.strip(),
-    format="mixed",
-    errors="coerce"
-)
-
-# Fail loudly if any timestamps could not be parsed
-bad_dates = df[df["datetime"].isna()]
-
-if not bad_dates.empty:
-    print("These rows have timestamps that could not be parsed:")
-    print(bad_dates[[time_col, value_col]])
-    raise ValueError("Some timestamps could not be parsed. Fix parsing before plotting.")
-
-# Always sort by the parsed datetime, never by the raw Time column
-df = df.sort_values("datetime").reset_index(drop=True)
-
-df["date"] = df["datetime"].dt.floor("D")
-df["hour"] = df["datetime"].dt.hour
-df["weekday"] = df["datetime"].dt.day_name()
-df["month"] = df["datetime"].dt.to_period("M")
-
-df["is_poor"] = df[value_col].eq(0)
-df["is_good"] = df[value_col].eq(1)
-
-df["week_start"] = df["date"] - pd.to_timedelta(df["date"].dt.weekday, unit="D")
-df["week_label"] = df["week_start"].dt.strftime("%Y-%m-%d")
-
-date_range = pd.date_range(df["date"].min(), df["date"].max(), freq="D")
-
-print(f"Dataset runs from {df['date'].min().date()} to {df['date'].max().date()}")
-print(f"Number of June records: {len(df[df['datetime'].dt.month == 6])}")
-
-weekday_order = [
+WEEKDAY_ORDER = [
     "Monday", "Tuesday", "Wednesday", "Thursday",
-    "Friday", "Saturday", "Sunday"
+    "Friday", "Saturday", "Sunday",
 ]
 
-month_range = pd.period_range(
-    df["month"].min(),
-    df["month"].max(),
-    freq="M"
-)
+FIGSIZE = (11, 5.2)
 
-week_start_min = df["week_start"].min()
-week_start_max = df["week_start"].max()
-week_range = pd.date_range(week_start_min, week_start_max, freq="W-MON")
-
-
-# Daily counts
-daily = (
-    df.groupby("date")
-    .size()
-    .reindex(date_range, fill_value=0)
-    .rename("count")
-    .reset_index()
-    .rename(columns={"index": "date"})
-)
+plt.rcParams.update({
+    "figure.dpi": 110,
+    "savefig.dpi": 200,
+    "font.size": 12,
+    "font.family": "sans-serif",
+    "text.color": INK,
+    "axes.edgecolor": GRID,
+    "axes.labelcolor": INK,
+    "axes.titlecolor": INK,
+    "xtick.color": MUTED,
+    "ytick.color": MUTED,
+    "axes.grid": True,
+    "grid.color": GRID,
+    "axes.axisbelow": True,
+})
 
 
-# Summary statistics
-summary = {
-    "observations": int(len(df)),
-    "days": int(len(daily)),
-    "average_per_day": round(len(df) / len(daily), 2),
-    "median_per_day": float(daily["count"].median()),
-    "good": int(df["is_good"].sum()),
-    "poor": int(df["is_poor"].sum()),
-    "good_rate": round(df["is_good"].mean() * 100, 1),
-    "poor_rate": round(df["is_poor"].mean() * 100, 1),
-    "max_per_day": int(daily["count"].max()),
-    "zero_poop_days": int((daily["count"] == 0).sum()),
-    "days_with_poop": int((daily["count"] > 0).sum()),
-    "earliest_hour": int(df["hour"].min()),
-    "latest_hour": int(df["hour"].max()),
-    "most_common_hour": int(df["hour"].mode().iloc[0]),
-}
+# ----------------------------------------------------------------------
+# Load + validate
+# ----------------------------------------------------------------------
 
-Path("summary.json").write_text(json.dumps(summary, indent=2))
+def load_data(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
 
+    time_col = next(c for c in df.columns if c.lower() == "time")
+    value_col = next(c for c in df.columns if c.lower() == "value")
 
-# Plot 1: daily frequency split by good and poor
-daily_quality = (
-    df.groupby(["date", value_col])
-    .size()
-    .unstack(fill_value=0)
-    .reindex(date_range, fill_value=0)
-)
-
-for v in [0, 1]:
-    if v not in daily_quality.columns:
-        daily_quality[v] = 0
-
-daily_quality = daily_quality[[1, 0]]
-
-plt.figure(figsize=(12, 5.5))
-plt.bar(
-    daily_quality.index,
-    daily_quality[1],
-    width=0.9,
-    label="Good",
-    color=GOOD_COLOR
-)
-plt.bar(
-    daily_quality.index,
-    daily_quality[0],
-    width=0.9,
-    bottom=daily_quality[1],
-    label="Poor",
-    color=POOR_COLOR
-)
-plt.title("Daily poop frequency")
-plt.xlabel("Date")
-plt.ylabel("Poops per day")
-plt.legend()
-plt.xlim(date_range.min(), date_range.max())
-plt.tight_layout()
-plt.savefig(FIGURES / "daily_frequency.png", dpi=200)
-plt.close()
-
-
-# Plot 2: poops by hour split by good and poor
-hourly_quality = (
-    df.groupby(["hour", value_col])
-    .size()
-    .unstack(fill_value=0)
-    .reindex(range(24), fill_value=0)
-)
-
-for v in [0, 1]:
-    if v not in hourly_quality.columns:
-        hourly_quality[v] = 0
-
-hourly_quality = hourly_quality[[1, 0]]
-
-plt.figure(figsize=(12, 5.5))
-plt.bar(
-    hourly_quality.index,
-    hourly_quality[1],
-    label="Good",
-    color=GOOD_COLOR
-)
-plt.bar(
-    hourly_quality.index,
-    hourly_quality[0],
-    bottom=hourly_quality[1],
-    label="Poor",
-    color=POOR_COLOR
-)
-plt.title("Poops by hour of day")
-plt.xlabel("Hour of day")
-plt.ylabel("Number of poops")
-plt.xticks(range(0, 24, 2))
-plt.legend()
-plt.tight_layout()
-plt.savefig(FIGURES / "hour_of_day.png", dpi=200)
-plt.close()
-
-
-# Plot 3: poops by weekday split by good and poor
-weekday_quality = (
-    df.groupby(["weekday", value_col])
-    .size()
-    .unstack(fill_value=0)
-    .reindex(weekday_order, fill_value=0)
-)
-
-for v in [0, 1]:
-    if v not in weekday_quality.columns:
-        weekday_quality[v] = 0
-
-weekday_quality = weekday_quality[[1, 0]]
-
-plt.figure(figsize=(12, 5.5))
-plt.bar(
-    weekday_quality.index,
-    weekday_quality[1],
-    label="Good",
-    color=GOOD_COLOR
-)
-plt.bar(
-    weekday_quality.index,
-    weekday_quality[0],
-    bottom=weekday_quality[1],
-    label="Poor",
-    color=POOR_COLOR
-)
-plt.title("Poops by weekday")
-plt.xlabel("Weekday")
-plt.ylabel("Number of poops")
-plt.xticks(rotation=30, ha="right")
-plt.legend()
-plt.tight_layout()
-plt.savefig(FIGURES / "poops_by_weekday.png", dpi=200)
-plt.close()
-
-
-# Plot 4: cumulative poops over time
-daily_cumulative = daily.copy()
-daily_cumulative["cumulative_count"] = daily_cumulative["count"].cumsum()
-
-plt.figure(figsize=(12, 5.5))
-plt.plot(
-    daily_cumulative["date"],
-    daily_cumulative["cumulative_count"],
-    marker="o"
-)
-plt.title("Cumulative poops over time")
-plt.xlabel("Date")
-plt.ylabel("Cumulative number of poops")
-plt.xlim(date_range.min(), date_range.max())
-plt.tight_layout()
-plt.savefig(FIGURES / "cumulative_poops.png", dpi=200)
-plt.close()
-
-
-# Plot 5: distribution of daily poop counts
-daily_count_distribution = (
-    daily["count"]
-    .value_counts()
-    .sort_index()
-)
-
-plt.figure(figsize=(12, 5.5))
-plt.bar(daily_count_distribution.index, daily_count_distribution.values)
-plt.title("Distribution of daily poop counts")
-plt.xlabel("Poops per day")
-plt.ylabel("Number of days")
-plt.xticks(daily_count_distribution.index)
-plt.tight_layout()
-plt.savefig(FIGURES / "daily_count_distribution.png", dpi=200)
-plt.close()
-
-
-# Plot 6: rolling average daily poops
-daily_rolling = daily.copy()
-daily_rolling["rolling_average"] = (
-    daily_rolling["count"]
-    .rolling(window=7, min_periods=1)
-    .mean()
-)
-
-plt.figure(figsize=(12, 5.5))
-plt.plot(
-    daily_rolling["date"],
-    daily_rolling["rolling_average"],
-    marker="o"
-)
-plt.title("Rolling average daily poops")
-plt.xlabel("Date")
-plt.ylabel("7-day rolling average")
-plt.xlim(date_range.min(), date_range.max())
-plt.tight_layout()
-plt.savefig(FIGURES / "rolling_average_daily_poops.png", dpi=200)
-plt.close()
-
-
-# Plot 7: poops by month split by good and poor
-monthly_quality = (
-    df.groupby(["month", value_col])
-    .size()
-    .unstack(fill_value=0)
-    .reindex(month_range, fill_value=0)
-)
-
-for v in [0, 1]:
-    if v not in monthly_quality.columns:
-        monthly_quality[v] = 0
-
-monthly_quality = monthly_quality[[1, 0]]
-monthly_labels = [str(m) for m in monthly_quality.index]
-monthly_x = np.arange(len(monthly_labels))
-
-plt.figure(figsize=(12, 5.5))
-plt.bar(
-    monthly_x,
-    monthly_quality[1].values,
-    label="Good",
-    color=GOOD_COLOR
-)
-plt.bar(
-    monthly_x,
-    monthly_quality[0].values,
-    bottom=monthly_quality[1].values,
-    label="Poor",
-    color=POOR_COLOR
-)
-plt.title("Poops by month")
-plt.xlabel("Month")
-plt.ylabel("Number of poops")
-plt.xticks(monthly_x, monthly_labels, rotation=30, ha="right")
-plt.legend()
-plt.tight_layout()
-plt.savefig(FIGURES / "poops_by_month.png", dpi=200)
-plt.close()
-
-
-# Plot 8: poop calendar
-calendar_data = daily.copy()
-calendar_data["weekday_num"] = calendar_data["date"].dt.weekday
-calendar_data["week"] = calendar_data["date"].dt.isocalendar().week.astype(int)
-calendar_data["year"] = calendar_data["date"].dt.isocalendar().year.astype(int)
-
-calendar_data["year_week"] = (
-    calendar_data["year"].astype(str)
-    + "-"
-    + calendar_data["week"].astype(str).str.zfill(2)
-)
-
-week_order = calendar_data["year_week"].drop_duplicates().tolist()
-week_lookup = {week: i for i, week in enumerate(week_order)}
-
-calendar_grid = np.full((7, len(week_order)), np.nan)
-
-for _, row in calendar_data.iterrows():
-    week_index = week_lookup[row["year_week"]]
-    weekday_index = int(row["weekday_num"])
-    calendar_grid[weekday_index, week_index] = row["count"]
-
-plt.figure(figsize=(14, 4.8))
-plt.imshow(calendar_grid, aspect="auto", interpolation="nearest")
-plt.title("Poop calendar")
-plt.xlabel("Week")
-plt.ylabel("Day of week")
-plt.yticks(range(7), ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
-
-week_labels = []
-week_positions = []
-
-for i, week in enumerate(week_order):
-    if i == 0 or week.endswith("-01") or i % 4 == 0:
-        week_labels.append(week)
-        week_positions.append(i)
-
-plt.xticks(week_positions, week_labels, rotation=45, ha="right")
-cbar = plt.colorbar()
-cbar.set_label("Poops per day")
-plt.tight_layout()
-plt.savefig(FIGURES / "poop_calendar.png", dpi=200)
-plt.close()
-
-
-# Plot 9: Top 3 longest poop streaks
-streak_data = daily.copy()
-streak_data["has_poop"] = streak_data["count"] > 0
-
-streaks = []
-current_start = None
-current_length = 0
-previous_date = None
-
-for _, row in streak_data.iterrows():
-    if row["has_poop"]:
-        if current_start is None:
-            current_start = row["date"]
-            current_length = 1
-        else:
-            current_length += 1
-    else:
-        if current_start is not None:
-            streaks.append({
-                "start": current_start,
-                "end": previous_date,
-                "length": current_length
-            })
-            current_start = None
-            current_length = 0
-
-    previous_date = row["date"]
-
-if current_start is not None:
-    streaks.append({
-        "start": current_start,
-        "end": previous_date,
-        "length": current_length
-    })
-
-streak_df = pd.DataFrame(streaks)
-
-plt.figure(figsize=(12, 5.5))
-
-if not streak_df.empty:
-    top_streaks = (
-        streak_df
-        .sort_values("length", ascending=False)
-        .head(3)
-        .sort_values("length", ascending=True)
+    # Raw CSV may hold non-zero-padded timestamps (2026-6-16 10:23:3),
+    # so parse as mixed format rather than trusting one inferred layout.
+    df["datetime"] = pd.to_datetime(
+        df[time_col].astype(str).str.strip(),
+        format="mixed",
+        errors="coerce",
     )
 
-    streak_labels = [
-        f"{row['start'].strftime('%Y-%m-%d')} to {row['end'].strftime('%Y-%m-%d')}"
-        for _, row in top_streaks.iterrows()
+    bad = df[df["datetime"].isna()]
+    if not bad.empty:
+        print("Unparseable timestamps:")
+        print(bad[[time_col, value_col]])
+        raise ValueError("Fix timestamp parsing before building the site.")
+
+    df = df.sort_values("datetime").reset_index(drop=True)
+
+    df["value"] = df[value_col].astype(int)
+    df["date"] = df["datetime"].dt.floor("D")
+    df["hour"] = df["datetime"].dt.hour
+    df["hour_decimal"] = df["hour"] + df["datetime"].dt.minute / 60.0
+    df["weekday"] = df["datetime"].dt.day_name()
+    df["month"] = df["datetime"].dt.to_period("M")
+    df["is_good"] = df["value"].eq(1)
+    df["is_poor"] = df["value"].eq(0)
+    return df
+
+
+def daily_counts(df: pd.DataFrame, date_range: pd.DatetimeIndex) -> pd.DataFrame:
+    return (
+        df.groupby("date").size()
+        .reindex(date_range, fill_value=0)
+        .rename("count").reset_index().rename(columns={"index": "date"})
+    )
+
+
+# ----------------------------------------------------------------------
+# Analytics  (pure functions: no plotting, easy to test)
+# ----------------------------------------------------------------------
+
+def quality_split(df: pd.DataFrame, key: str, index) -> pd.DataFrame:
+    """Counts of good/poor for each level of `key`, aligned to `index`.
+
+    Returns a frame with columns ['good', 'poor']. Replaces the repeated
+    unstack / reindex / reorder block that appeared in every stacked chart.
+    """
+    grid = df.groupby([key, "value"]).size().unstack(fill_value=0)
+    for v in (0, 1):
+        if v not in grid.columns:
+            grid[v] = 0
+    grid = grid.reindex(index, fill_value=0)
+    return pd.DataFrame({"good": grid[1], "poor": grid[0]}, index=grid.index)
+
+
+def circular_stats(hours_decimal: np.ndarray) -> dict:
+    """Treat clock times as angles and measure how clustered they are.
+
+    R (mean resultant length) is 0 when times are spread evenly around the
+    clock and 1 when every poop happens at the exact same time of day, so it
+    doubles as a 0-100% "regularity" score. The Rayleigh test asks whether an
+    R that large could plausibly come from uniform timing (Zar 1999 approx).
+    """
+    theta = 2 * np.pi * (np.asarray(hours_decimal) / 24.0)
+    n = len(theta)
+    if n == 0:
+        return {"R": 0.0, "mean_hour": 0.0, "rayleigh_p": 1.0, "n": 0}
+
+    c, s = np.cos(theta).mean(), np.sin(theta).mean()
+    R = float(np.hypot(c, s))
+    mean_hour = float((np.arctan2(s, c) % (2 * np.pi)) / (2 * np.pi) * 24.0)
+
+    Z = n * R * R
+    p = np.exp(-Z) * (
+        1
+        + (2 * Z - Z ** 2) / (4 * n)
+        - (24 * Z - 132 * Z ** 2 + 76 * Z ** 3 - 9 * Z ** 4) / (288 * n ** 2)
+    )
+    return {"R": R, "mean_hour": mean_hour,
+            "rayleigh_p": float(min(max(p, 0.0), 1.0)), "n": n}
+
+
+def weekday_frequency_test(df: pd.DataFrame, date_range: pd.DatetimeIndex) -> dict:
+    """Chi-square: are poops evenly spread across weekdays?
+
+    Expected counts are weighted by how many Mondays, Tuesdays, ... the log
+    actually spans -- not a flat total/7, which would be wrong for a run that
+    doesn't cover whole weeks.
+    """
+    observed = (df["weekday"].value_counts()
+                .reindex(WEEKDAY_ORDER, fill_value=0).to_numpy(float))
+    weekday_days = (pd.Series(date_range.day_name())
+                    .value_counts().reindex(WEEKDAY_ORDER, fill_value=0).to_numpy(float))
+    expected = weekday_days / weekday_days.sum() * observed.sum()
+    chi2, p = stats.chisquare(observed, f_exp=expected)
+    busiest = WEEKDAY_ORDER[int(np.argmax(observed / weekday_days))]
+    return {"chi2": float(chi2), "p": float(p), "busiest_weekday": busiest}
+
+
+def weekday_quality_test(df: pd.DataFrame) -> dict:
+    """Contingency test: does poop quality depend on the weekday?"""
+    table = (pd.crosstab(df["weekday"], df["value"])
+             .reindex(WEEKDAY_ORDER, fill_value=0))
+    for v in (0, 1):
+        if v not in table.columns:
+            table[v] = 0
+    chi2, p, dof, _ = stats.chi2_contingency(table[[1, 0]].to_numpy())
+    small = int(table.min().min()) < 5   # flag sparse cells
+    return {"chi2": float(chi2), "p": float(p), "sparse": small}
+
+
+def interval_stats(df: pd.DataFrame) -> dict:
+    gaps = df["datetime"].diff().dt.total_seconds().div(3600).dropna()
+    return {"median_gap": float(gaps.median()),
+            "mean_gap": float(gaps.mean()),
+            "gaps": gaps}
+
+
+def find_streaks(daily: pd.DataFrame) -> pd.DataFrame:
+    """Runs of consecutive days with at least one poop (vectorised)."""
+    has = daily["count"].gt(0)
+    run_id = (has != has.shift()).cumsum()
+    runs = (daily.assign(has=has, run=run_id)[has]
+            .groupby("run")
+            .agg(start=("date", "first"), end=("date", "last"), length=("date", "size"))
+            .reset_index(drop=True))
+    return runs.sort_values("length", ascending=False).reset_index(drop=True)
+
+
+def build_summary(df, daily, circ, wf_test, wq_test, gaps, lam) -> dict:
+    days = len(daily)
+    zero_days = int((daily["count"] == 0).sum())
+    return {
+        "observations": int(len(df)),
+        "days": days,
+        "days_with_poop": int((daily["count"] > 0).sum()),
+        "zero_poop_days": zero_days,
+        "average_per_day": round(len(df) / days, 2),
+        "median_per_day": float(daily["count"].median()),
+        "max_per_day": int(daily["count"].max()),
+        "good": int(df["is_good"].sum()),
+        "poor": int(df["is_poor"].sum()),
+        "good_rate": round(df["is_good"].mean() * 100, 1),
+        "poor_rate": round(df["is_poor"].mean() * 100, 1),
+        "most_common_hour": int(df["hour"].mode().iloc[0]),
+        # New readings
+        "regularity_score": round(circ["R"] * 100, 1),
+        "mean_clock_time": _fmt_clock(circ["mean_hour"]),
+        "rayleigh_p": circ["rayleigh_p"],
+        "busiest_weekday": wf_test["busiest_weekday"],
+        "weekday_freq_p": wf_test["p"],
+        "weekday_quality_p": wq_test["p"],
+        "weekday_quality_sparse": wq_test["sparse"],
+        "typical_gap_hours": round(float(gaps.median()), 1),
+        "expected_zero_day_rate": round(float(stats.poisson.pmf(0, lam)) * 100, 1),
+        "observed_zero_day_rate": round(zero_days / days * 100, 1),
+    }
+
+
+def _fmt_clock(hour_float: float) -> str:
+    h = int(hour_float) % 24
+    m = int(round((hour_float - int(hour_float)) * 60)) % 60
+    return f"{h:02d}:{m:02d}"
+
+
+def _fmt_p(p: float) -> str:
+    return "p < 0.001" if p < 0.001 else f"p = {p:.3f}"
+
+
+# ----------------------------------------------------------------------
+# Plots  (each draws, saves a PNG, and returns its filename)
+# ----------------------------------------------------------------------
+
+def _finish(fig, name: str) -> str:
+    fig.tight_layout()
+    fig.savefig(FIGURES / name, transparent=True, bbox_inches="tight")
+    plt.close(fig)
+    return name
+
+
+def _stacked(ax, x, good, poor, width=None):
+    kw = {} if width is None else {"width": width}
+    ax.bar(x, good, color=GOOD_COLOR, label="Good", **kw)
+    ax.bar(x, poor, bottom=good, color=POOR_COLOR, label="Poor", **kw)
+    ax.legend(frameon=False)
+
+
+def fig_dial(df) -> str:
+    """Signature reading: poops arranged around a 24-hour clock face."""
+    split = quality_split(df, "hour", range(24))
+    theta = np.array([2 * np.pi * h / 24 for h in range(24)])
+    width = 2 * np.pi / 24
+    fig = plt.figure(figsize=(6.4, 6.4))
+    ax = fig.add_subplot(projection="polar")
+    ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)          # clockwise, like a real clock
+    ax.bar(theta, split["good"], width=width, align="edge",
+           color=GOOD_COLOR, label="Good")
+    ax.bar(theta, split["poor"], width=width, align="edge",
+           bottom=split["good"], color=POOR_COLOR, label="Poor")
+    ax.set_xticks([2 * np.pi * h / 24 for h in range(0, 24, 2)])
+    ax.set_xticklabels([f"{h:02d}" for h in range(0, 24, 2)])
+    ax.set_yticklabels([])
+    ax.grid(color=GRID)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.12),
+              ncol=2, frameon=False)
+    return _finish(fig, "dial.png")
+
+
+def fig_cumulative(daily) -> str:
+    d = daily.copy()
+    d["cum"] = d["count"].cumsum()
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.fill_between(d["date"], d["cum"], color=GOOD_COLOR, alpha=0.15)
+    ax.plot(d["date"], d["cum"], color=GOOD_COLOR, linewidth=2)
+    ax.set_ylabel("Cumulative poops")
+    ax.margins(x=0)
+    return _finish(fig, "cumulative.png")
+
+
+def fig_calendar(daily) -> str:
+    d = daily.copy()
+    d["weekday_num"] = d["date"].dt.weekday
+    iso = d["date"].dt.isocalendar()
+    d["year_week"] = (iso.year.astype(str) + "-W"
+                      + iso.week.astype(int).astype(str).str.zfill(2))
+    weeks = d["year_week"].drop_duplicates().tolist()
+    week_idx = {w: i for i, w in enumerate(weeks)}
+
+    z = np.full((7, len(weeks)), np.nan)
+    for _, r in d.iterrows():
+        z[int(r["weekday_num"])][week_idx[r["year_week"]]] = r["count"]
+
+    cmap = LinearSegmentedColormap.from_list("poop", ["#e9f1f6", GOOD_COLOR])
+    cmap.set_bad("#f4f7f9")
+
+    fig, ax = plt.subplots(figsize=(13, 4.4))
+    im = ax.imshow(np.ma.masked_invalid(z), aspect="auto",
+                   interpolation="nearest", cmap=cmap, vmin=0)
+    ax.set_yticks(range(7))
+    ax.set_yticklabels(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])
+    ticks = [i for i, _ in enumerate(weeks) if i % 4 == 0]
+    ax.set_xticks(ticks)
+    ax.set_xticklabels([weeks[i] for i in ticks], rotation=45, ha="right")
+    ax.grid(False)
+    fig.colorbar(im, ax=ax, label="Poops per day")
+    return _finish(fig, "calendar.png")
+
+
+def fig_streaks(streaks) -> str:
+    top = streaks.head(3).iloc[::-1]
+    labels = [f"{r.start:%Y-%m-%d} → {r.end:%Y-%m-%d}" for r in top.itertuples()]
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.barh(labels, top["length"], color=GOOD_COLOR)
+    ax.set_xlabel("Consecutive days with a poop")
+    ax.grid(axis="y", visible=False)
+    return _finish(fig, "streaks.png")
+
+
+def fig_rolling(daily) -> str:
+    d = daily.copy()
+    d["r7"] = d["count"].rolling(7, min_periods=1).mean()
+    d["r30"] = d["count"].rolling(30, min_periods=1).mean()
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.plot(d["date"], d["r7"], color=GOOD_COLOR, linewidth=2, label="7-day")
+    ax.plot(d["date"], d["r30"], color=POOR_COLOR, linewidth=2,
+            linestyle=":", label="30-day")
+    ax.set_ylabel("Poops per day")
+    ax.legend(frameon=False)
+    ax.margins(x=0)
+    return _finish(fig, "rolling.png")
+
+
+def fig_weekday(df) -> str:
+    split = quality_split(df, "weekday", WEEKDAY_ORDER)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    _stacked(ax, split.index, split["good"], split["poor"])
+    ax.set_ylabel("Number of poops")
+    ax.set_xticks(range(len(split.index)))
+    ax.set_xticklabels(split.index, rotation=30, ha="right")
+    return _finish(fig, "weekday.png")
+
+
+def fig_weekday_quality(df) -> str:
+    split = quality_split(df, "weekday", WEEKDAY_ORDER)
+    total = (split["good"] + split["poor"]).replace(0, np.nan)
+    rate = (split["good"] / total * 100)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.bar(split.index, rate, color=GOOD_COLOR)
+    ax.set_ylabel("% good")
+    ax.set_ylim(0, 100)
+    ax.set_xticks(range(len(split.index)))
+    ax.set_xticklabels(split.index, rotation=30, ha="right")
+    return _finish(fig, "weekday_quality.png")
+
+
+def fig_monthly(df, month_range) -> str:
+    labels = [str(m) for m in month_range]
+    split = quality_split(df, "month", month_range)
+    x = np.arange(len(labels))
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.bar(x, split["good"].to_numpy(), color=GOOD_COLOR, label="Good")
+    ax.bar(x, split["poor"].to_numpy(), bottom=split["good"].to_numpy(),
+           color=POOR_COLOR, label="Poor")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=30, ha="right")
+    ax.set_ylabel("Number of poops")
+    ax.legend(frameon=False)
+    return _finish(fig, "monthly.png")
+
+
+def fig_daily_distribution(daily, lam) -> str:
+    counts = daily["count"].value_counts().sort_index()
+    ks = np.arange(0, int(daily["count"].max()) + 1)
+    expected = stats.poisson.pmf(ks, lam) * len(daily)
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.bar(counts.index, counts.values, color=GOOD_COLOR, label="Observed")
+    ax.plot(ks, expected, color=POOR_COLOR, marker="o", linewidth=2,
+            label=f"Poisson (λ={lam:.2f})")
+    ax.set_xlabel("Poops per day")
+    ax.set_ylabel("Number of days")
+    ax.set_xticks(ks)
+    ax.legend(frameon=False)
+    return _finish(fig, "daily_distribution.png")
+
+
+def fig_time_between(gaps) -> str:
+    gaps = gaps[gaps < np.percentile(gaps, 99)]   # trim multi-day tail
+    mean_gap = gaps.mean()
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    counts, edges, _ = ax.hist(gaps, bins=24, color=GOOD_COLOR, label="Observed")
+    centres = (edges[:-1] + edges[1:]) / 2
+    width = edges[1] - edges[0]
+    expected = (np.exp(-centres / mean_gap) / mean_gap) * len(gaps) * width
+    ax.plot(centres, expected, color=POOR_COLOR, linewidth=2,
+            label=f"Exponential (mean {mean_gap:.1f} h)")
+    ax.set_xlabel("Hours since previous poop")
+    ax.set_ylabel("Number of intervals")
+    ax.legend(frameon=False)
+    return _finish(fig, "time_between.png")
+
+
+def fig_quality_donut(summary) -> str:
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.pie([summary["good"], summary["poor"]],
+           labels=["Good", "Poor"], colors=[GOOD_COLOR, POOR_COLOR],
+           autopct="%1.1f%%", startangle=90, counterclock=False,
+           wedgeprops=dict(width=0.42, edgecolor="white"))
+    ax.set(aspect="equal")
+    return _finish(fig, "quality_donut.png")
+
+
+# ----------------------------------------------------------------------
+# HTML assembly
+# ----------------------------------------------------------------------
+
+CSS = """
+:root{--paper:#eef1f4;--panel:#fff;--ink:#16233b;--muted:#5b6b82;--line:#d9dfe6;}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{max-width:1250px;margin:auto;padding:24px;background:var(--paper);
+ color:var(--ink);font-family:Inter,Arial,sans-serif;line-height:1.5;}
+.masthead{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:8px;}
+.masthead h1{font-family:'Space Grotesk',sans-serif;font-weight:700;
+ letter-spacing:-0.5px;margin:0;font-size:2.4rem;}
+.eyebrow{font-family:'IBM Plex Mono',monospace;text-transform:uppercase;
+ letter-spacing:0.18em;font-size:0.72rem;color:var(--muted);margin:0 0 6px;}
+.subtitle{color:var(--muted);margin:6px 0 0;}
+.page-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;
+ align-items:start;margin-top:24px;}
+.sidebar{position:sticky;top:20px;background:var(--panel);border:1px solid var(--line);
+ border-radius:12px;padding:16px;}
+.sidebar h2{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;
+ text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin:0 0 12px;}
+.nav-section{margin-bottom:16px;}
+.nav-section h3{font-family:'IBM Plex Mono',monospace;font-size:0.68rem;
+ text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin:12px 0 4px;}
+.nav-section:first-of-type h3{margin-top:0;}
+.sidebar a{display:block;color:var(--ink);text-decoration:none;padding:6px 9px;
+ border-radius:7px;font-size:0.9rem;}
+.sidebar a:hover{background:var(--paper);}
+.content{min-width:0;}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+ gap:12px;margin-bottom:28px;}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+ padding:14px 16px;}
+.stat h3{font-family:'IBM Plex Mono',monospace;font-size:0.68rem;
+ text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);
+ margin:0 0 6px;font-weight:500;}
+.stat p{font-family:'IBM Plex Mono',monospace;font-size:1.7rem;font-weight:600;
+ margin:0;line-height:1.1;}
+.stat span{font-size:0.78rem;color:var(--muted);font-family:Inter,sans-serif;
+ font-weight:400;display:block;margin-top:2px;}
+.plot-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+ padding:16px 18px;margin-bottom:26px;scroll-margin-top:20px;}
+.plot-card h2{font-family:'Space Grotesk',sans-serif;font-size:1.15rem;
+ margin:0 0 12px;text-align:left;}
+.plot-card img{width:100%;display:block;}
+.note{font-size:0.82rem;color:var(--muted);margin:10px 2px 0;}
+.methods{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+ padding:18px 22px;margin-top:8px;}
+.methods h2{font-family:'Space Grotesk',sans-serif;font-size:1.1rem;margin:0 0 8px;}
+.methods p{font-size:0.86rem;color:var(--muted);margin:6px 0;}
+footer{text-align:center;color:var(--muted);margin-top:36px;font-size:0.85rem;
+ font-family:'IBM Plex Mono',monospace;}
+@media(max-width:850px){.page-layout{grid-template-columns:1fr;}
+ .sidebar{position:static;}}
+"""
+
+FONTS = (
+    '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    '<link href="https://fonts.googleapis.com/css2?'
+    'family=Space+Grotesk:wght@500;600;700&'
+    'family=IBM+Plex+Mono:wght@400;500;600&'
+    'family=Inter:wght@400;500;600&display=swap" rel="stylesheet">'
+)
+
+
+def anchor(text: str) -> str:
+    keep = [c.lower() if c.isalnum() else "-" for c in text]
+    out = "".join(keep)
+    while "--" in out:
+        out = out.replace("--", "-")
+    return out.strip("-")
+
+
+def stat_card(label, value, sub=""):
+    sub_html = f"<span>{sub}</span>" if sub else ""
+    return f'<div class="stat"><h3>{label}</h3><p>{value}</p>{sub_html}</div>'
+
+
+def build_html(summary, plots, methods_html):
+    sections = []
+    for p in plots:
+        if p["section"] not in sections:
+            sections.append(p["section"])
+
+    nav = []
+    for sec in sections:
+        links = "".join(
+            f'<a href="#{anchor(p["title"])}">{p["title"]}</a>'
+            for p in plots if p["section"] == sec
+        )
+        nav.append(f'<div class="nav-section"><h3>{sec}</h3>{links}</div>')
+    nav_html = "".join(nav)
+
+    cards = "".join(
+        f'<div class="plot-card" id="{anchor(p["title"])}">'
+        f'<h2>{p["title"]}</h2>'
+        f'<img src="figures/{p["file"]}" alt="{p["title"]}">'
+        + (f'<p class="note">{p["note"]}</p>' if p.get("note") else "")
+        + "</div>"
+        for p in plots
+    )
+
+    readout = "".join([
+        stat_card("Observations", summary["observations"]),
+        stat_card("Days covered", summary["days"]),
+        stat_card("Good rate", f'{summary["good_rate"]}%'),
+        stat_card("Regularity", f'{summary["regularity_score"]}%'),
+        stat_card("Mean clock time", summary["mean_clock_time"]),
+        stat_card("Typical gap", f'{summary["typical_gap_hours"]} h'),
+        stat_card("Busiest day", summary["busiest_weekday"]),
+        stat_card("Zero-poop days", summary["zero_poop_days"],
+                  f'obs {summary["observed_zero_day_rate"]}% / exp {summary["expected_zero_day_rate"]}%'),
+    ])
+
+    return (
+        "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<title>The Poop Observatory</title>"
+        + FONTS
+        + "<style>" + CSS + "</style></head><body>"
+        + "<div class='masthead'>"
+          "<p class='eyebrow'>An instrument reading of the daily rhythm</p>"
+          "<h1>The Poop Observatory</h1>"
+          "<p class='subtitle'>Automatically generated from an anonymised raw log.</p></div>"
+        + "<div class='page-layout'>"
+        + f"<nav class='sidebar'><h2>Readings</h2>{nav_html}</nav>"
+        + "<main class='content'>"
+        + f"<div class='readout'>{readout}</div>"
+        + f"<div class='plots'>{cards}</div>"
+        + methods_html
+        + "</main></div>"
+        + "<footer>Raw timestamps are not displayed on this site.</footer>"
+        + "</body></html>"
+    )
+
+
+def build_methods(summary):
+    reg = summary["regularity_score"]
+    return (
+        "<div class='methods'><h2>Methods &amp; readings</h2>"
+        f"<p><strong>Regularity ({reg}%).</strong> Clock times are treated as "
+        "angles on a 24-hour circle; the score is the mean resultant length, "
+        "which is 0% if timing is spread evenly around the clock and 100% if "
+        "every poop lands at the same time of day. A Rayleigh test checks that "
+        f"this clustering is real rather than chance ({_fmt_p(summary['rayleigh_p'])}).</p>"
+        "<p><strong>Weekday frequency.</strong> A chi-square test compares poops "
+        "per weekday against how many of each weekday the log actually spans "
+        f"({_fmt_p(summary['weekday_freq_p'])}).</p>"
+        "<p><strong>Weekday quality.</strong> A contingency test asks whether the "
+        f"good/poor split depends on the day ({_fmt_p(summary['weekday_quality_p'])})"
+        + (" — treat with care, some day/quality cells are sparse"
+           if summary["weekday_quality_sparse"] else "") + ".</p>"
+        "<p><strong>Models.</strong> Daily counts are compared with a Poisson "
+        "model and gaps between poops with an exponential model; both are overlaid "
+        "on the observed data above.</p></div>"
+    )
+
+
+# ----------------------------------------------------------------------
+# Main
+# ----------------------------------------------------------------------
+
+def main():
+    FIGURES.mkdir(exist_ok=True)
+    df = load_data(DATA)
+
+    date_range = pd.date_range(df["date"].min(), df["date"].max(), freq="D")
+    month_range = pd.period_range(df["month"].min(), df["month"].max(), freq="M")
+    daily = daily_counts(df, date_range)
+
+    circ = circular_stats(df["hour_decimal"].to_numpy())
+    wf_test = weekday_frequency_test(df, date_range)
+    wq_test = weekday_quality_test(df)
+    intervals = interval_stats(df)
+    lam = daily["count"].mean()
+    streaks = find_streaks(daily)
+
+    summary = build_summary(df, daily, circ, wf_test, wq_test, intervals["gaps"], lam)
+    SUMMARY.write_text(json.dumps(summary, indent=2))
+
+    print(f"Range {df['date'].min():%Y-%m-%d} → {df['date'].max():%Y-%m-%d} "
+          f"| {summary['observations']} obs over {summary['days']} days")
+    print(f"Regularity {summary['regularity_score']}% at ~{summary['mean_clock_time']} "
+          f"({_fmt_p(summary['rayleigh_p'])}) | busiest {summary['busiest_weekday']}")
+
+    # Registry: (section, title, figure-file, optional note). Ordered as a
+    # narrative that zooms out: day -> week -> whole log -> consistency ->
+    # distributions. Add or reorder plots here and the page follows.
+    registry = [
+        ("Rhythm of the day", "The dial", fig_dial(df),
+         "Angle = time of day (00:00 at the top, clockwise); bar length = count. "
+         f"Regularity {summary['regularity_score']}% ({_fmt_p(summary['rayleigh_p'])})."),
+
+        ("Rhythm of the week", "Poops by weekday", fig_weekday(df),
+         f"Frequency across weekdays: {_fmt_p(summary['weekday_freq_p'])}."),
+        ("Rhythm of the week", "Good rate by weekday", fig_weekday_quality(df),
+         f"Quality vs weekday: {_fmt_p(summary['weekday_quality_p'])}."),
+
+        ("Over time", "Cumulative poops over time", fig_cumulative(daily), ""),
+        ("Over time", "Rolling average", fig_rolling(daily),
+         "7-day (solid) and 30-day (dotted) mean poops per day."),
+        ("Over time", "Poops by month", fig_monthly(df, month_range), ""),
+
+        ("Consistency", "Poop calendar", fig_calendar(daily),
+         "Each cell is a day; darker means more poops, blank means none logged."),
+        ("Consistency", "Top 3 longest streaks", fig_streaks(streaks), ""),
+
+        ("Distributions", "Daily count distribution", fig_daily_distribution(daily, lam),
+         "Bars = observed; line = Poisson expectation for the same number of days."),
+        ("Distributions", "Time between poops", fig_time_between(intervals["gaps"]),
+         "Bars = observed gaps; line = exponential model. Long multi-day gaps trimmed."),
+        ("Distributions", "Poop quality", fig_quality_donut(summary), ""),
     ]
 
-    plt.barh(streak_labels, top_streaks["length"])
-    plt.xlabel("Consecutive days with poop")
-    plt.ylabel("Streak period")
-else:
-    plt.text(
-        0.5,
-        0.5,
-        "No poop streaks found",
-        ha="center",
-        va="center",
-        transform=plt.gca().transAxes
-    )
-    plt.xticks([])
-    plt.yticks([])
+    plots = [{"section": s, "title": t, "file": f, "note": n}
+             for s, t, f, n in registry]
 
-plt.title("Top 3 longest poop streaks")
-plt.tight_layout()
-plt.savefig(FIGURES / "top_three_poop_streaks.png", dpi=200)
-plt.close()
+    OUTPUT.write_text(build_html(summary, plots, build_methods(summary)), encoding="utf-8")
+    print(f"Wrote {OUTPUT} with {len(plots)} charts into {FIGURES}/.")
 
 
-# Plot 10: distribution of time between poops
-poop_times = df.sort_values("datetime").copy()
-poop_times["hours_since_previous"] = (
-    poop_times["datetime"]
-    .diff()
-    .dt.total_seconds()
-    / 3600
-)
-
-time_between = poop_times["hours_since_previous"].dropna()
-
-plt.figure(figsize=(12, 5.5))
-plt.hist(time_between, bins=20)
-plt.title("Distribution of time between poops")
-plt.xlabel("Hours since previous poop")
-plt.ylabel("Number of intervals")
-plt.tight_layout()
-plt.savefig(FIGURES / "time_between_poops_distribution.png", dpi=200)
-plt.close()
-
-
-# Plot 11: distribution of poop quality
-quality_counts = pd.Series({
-    "Good": int(df["is_good"].sum()),
-    "Poor": int(df["is_poor"].sum())
-})
-
-quality_colours = {
-    "Good": GOOD_COLOR,
-    "Poor": POOR_COLOR
-}
-
-plt.figure(figsize=(12, 5.5))
-plt.bar(
-    quality_counts.index,
-    quality_counts.values,
-    color=[quality_colours[label] for label in quality_counts.index]
-)
-plt.title("Distribution of poop quality")
-plt.xlabel("Poop quality")
-plt.ylabel("Number of poops")
-plt.tight_layout()
-plt.savefig(FIGURES / "poop_quality_distribution.png", dpi=200)
-plt.close()
-
-
-# Plot 12: weekly totals over time split by good and poor
-weekly_quality = (
-    df.groupby(["week_start", value_col])
-    .size()
-    .unstack(fill_value=0)
-    .reindex(week_range, fill_value=0)
-)
-
-weekly_quality = weekly_quality.rename(columns={
-    1: "Good",
-    0: "Poor"
-})
-
-for col in ["Good", "Poor"]:
-    if col not in weekly_quality.columns:
-        weekly_quality[col] = 0
-
-weekly_quality = weekly_quality[["Good", "Poor"]]
-
-weekly_labels = [d.strftime("%Y-%m-%d") for d in weekly_quality.index]
-weekly_x = np.arange(len(weekly_labels))
-
-plt.figure(figsize=(14, 5.8))
-
-plt.bar(
-    weekly_x,
-    weekly_quality["Good"].values,
-    label="Good",
-    color=GOOD_COLOR
-)
-
-plt.bar(
-    weekly_x,
-    weekly_quality["Poor"].values,
-    bottom=weekly_quality["Good"].values,
-    label="Poor",
-    color=POOR_COLOR
-)
-
-plt.title("Weekly poop totals over time")
-plt.xlabel("Week starting")
-plt.ylabel("Number of poops")
-
-tick_step = max(1, len(weekly_labels) // 12)
-tick_positions = weekly_x[::tick_step]
-tick_labels = [weekly_labels[i] for i in tick_positions]
-plt.xticks(tick_positions, tick_labels, rotation=45, ha="right")
-
-plt.legend()
-plt.tight_layout()
-plt.savefig(FIGURES / "weekly_totals_over_time.png", dpi=200)
-plt.close()
-
-
-# Plot 13: rolling average weekly poops
-daily_weekly_rolling = daily.copy()
-
-daily_weekly_rolling["rolling_weekly_average"] = (
-    daily_weekly_rolling["count"]
-    .rolling(window=7, min_periods=1)
-    .mean()
-)
-
-plt.figure(figsize=(12, 5.5))
-
-plt.plot(
-    daily_weekly_rolling["date"],
-    daily_weekly_rolling["rolling_weekly_average"],
-    marker="o"
-)
-
-plt.title("Rolling average weekly poops")
-plt.xlabel("Date")
-plt.ylabel("7-day rolling average")
-plt.xlim(date_range.min(), date_range.max())
-plt.tight_layout()
-plt.savefig(FIGURES / "rolling_average_weekly_poops.png", dpi=200)
-plt.close()
-
-
-# Plot 14: rolling average monthly poops
-daily_monthly_rolling = daily.copy()
-
-daily_monthly_rolling["rolling_monthly_average"] = (
-    daily_monthly_rolling["count"]
-    .rolling(window=30, min_periods=1)
-    .mean()
-)
-
-plt.figure(figsize=(12, 5.5))
-
-plt.plot(
-    daily_monthly_rolling["date"],
-    daily_monthly_rolling["rolling_monthly_average"],
-    marker="o"
-)
-
-plt.title("Rolling average monthly poops")
-plt.xlabel("Date")
-plt.ylabel("30-day rolling average")
-plt.xlim(date_range.min(), date_range.max())
-plt.tight_layout()
-plt.savefig(FIGURES / "rolling_average_monthly_poops.png", dpi=200)
-plt.close()
-
-
-# Website plot list
-# Add future plots here. The website cards and sidebar index are built from this list.
-plots = [
-    {
-        "section": "Overview",
-        "title": "Cumulative poops over time",
-        "file": "cumulative_poops.png",
-        "alt": "Cumulative poops over time"
-    },
-    {
-        "section": "Daily patterns",
-        "title": "Daily frequency",
-        "file": "daily_frequency.png",
-        "alt": "Daily poop frequency"
-    },
-    {
-        "section": "Daily patterns",
-        "title": "Poop calendar",
-        "file": "poop_calendar.png",
-        "alt": "Poop calendar"
-    },
-    {
-        "section": "Daily patterns",
-        "title": "Top 3 longest poop streaks",
-        "file": "top_three_poop_streaks.png",
-        "alt": "Top 3 longest poop streaks"
-    },
-    {
-        "section": "Daily patterns",
-        "title": "Rolling average daily poops",
-        "file": "rolling_average_daily_poops.png",
-        "alt": "Rolling average daily poops"
-    },
-    {
-        "section": "Weekly patterns",
-        "title": "Poops by weekday",
-        "file": "poops_by_weekday.png",
-        "alt": "Poops by weekday"
-    },
-    {
-        "section": "Weekly patterns",
-        "title": "Weekly poop totals over time",
-        "file": "weekly_totals_over_time.png",
-        "alt": "Weekly poop totals over time"
-    },
-    {
-        "section": "Weekly patterns",
-        "title": "Rolling average weekly poops",
-        "file": "rolling_average_weekly_poops.png",
-        "alt": "Rolling average weekly poops"
-    },
-    {
-        "section": "Monthly patterns",
-        "title": "Poops by month",
-        "file": "poops_by_month.png",
-        "alt": "Poops by month"
-    },
-    {
-        "section": "Monthly patterns",
-        "title": "Rolling average monthly poops",
-        "file": "rolling_average_monthly_poops.png",
-        "alt": "Rolling average monthly poops"
-    },
-    {
-        "section": "Timing patterns",
-        "title": "Hour of day",
-        "file": "hour_of_day.png",
-        "alt": "Poops by hour of day"
-    },
-    {
-        "section": "Distributions",
-        "title": "Distribution of daily poop counts",
-        "file": "daily_count_distribution.png",
-        "alt": "Distribution of daily poop counts"
-    },
-    {
-        "section": "Distributions",
-        "title": "Distribution of time between poops",
-        "file": "time_between_poops_distribution.png",
-        "alt": "Distribution of time between poops"
-    },
-    {
-        "section": "Distributions",
-        "title": "Distribution of poop quality",
-        "file": "poop_quality_distribution.png",
-        "alt": "Distribution of poop quality"
-    }
-]
-
-
-def make_anchor(text):
-    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-
-
-sections = []
-
-for plot in plots:
-    if plot["section"] not in sections:
-        sections.append(plot["section"])
-
-
-nav_links = ""
-
-for section in sections:
-    nav_links += f"""
-    <div class="nav-section">
-      <h3>{section}</h3>
-"""
-
-    for plot in plots:
-        if plot["section"] == section:
-            nav_links += f"""      <a href="#{make_anchor(plot['title'])}">{plot['title']}</a>
-"""
-
-    nav_links += """    </div>
-"""
-
-
-plot_cards = "\n".join(
-    f"""
-  <div class="plot-card" id="{make_anchor(plot['title'])}">
-    <h2>{plot['title']}</h2>
-    <img src="figures/{plot['file']}" alt="{plot['alt']}">
-  </div>
-"""
-    for plot in plots
-)
-
-
-# Build HTML
-html = f"""<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>The Poop Observatory</title>
-  <style>
-    html {{
-      scroll-behavior: smooth;
-    }}
-
-    body {{
-      max-width: 1250px;
-      margin: auto;
-      font-family: Arial, sans-serif;
-      line-height: 1.5;
-      padding: 20px;
-      background: #fafafa;
-      color: #222;
-    }}
-
-    h1, h2 {{
-      text-align: center;
-    }}
-
-    .subtitle {{
-      text-align: center;
-      color: #555;
-    }}
-
-    .page-layout {{
-      display: grid;
-      grid-template-columns: 230px minmax(0, 1fr);
-      gap: 25px;
-      align-items: start;
-    }}
-
-    .sidebar {{
-      position: sticky;
-      top: 20px;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 15px;
-    }}
-
-    .sidebar h2 {{
-      text-align: left;
-      font-size: 1rem;
-      margin-top: 0;
-      margin-bottom: 10px;
-      color: #555;
-    }}
-
-    .nav-section {{
-      margin-bottom: 18px;
-    }}
-
-    .nav-section h3 {{
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #777;
-      margin: 12px 0 6px 0;
-    }}
-
-    .nav-section:first-of-type h3 {{
-      margin-top: 0;
-    }}
-
-    .sidebar a {{
-      display: block;
-      color: #222;
-      text-decoration: none;
-      padding: 8px 10px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-    }}
-
-    .sidebar a:hover {{
-      background: #f0f0f0;
-    }}
-
-    .content {{
-      min-width: 0;
-    }}
-
-    .statbox {{
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
-      gap: 15px;
-      margin: 25px auto;
-      justify-content: center;
-    }}
-
-    .stat {{
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 15px;
-      text-align: center;
-    }}
-
-    .stat h3 {{
-      margin-bottom: 5px;
-      font-size: 1rem;
-      color: #555;
-    }}
-
-    .stat p {{
-      font-size: 1.8rem;
-      font-weight: bold;
-      margin: 0;
-    }}
-
-    img {{
-      width: 100%;
-      display: block;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 8px;
-      box-sizing: border-box;
-    }}
-
-    .plots {{
-      max-width: 950px;
-      margin: 40px auto;
-    }}
-
-    .plot-card {{
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 12px;
-      padding: 18px;
-      margin-bottom: 35px;
-      scroll-margin-top: 20px;
-    }}
-
-    .plot-card h2 {{
-      margin-top: 0;
-      margin-bottom: 15px;
-      text-align: left;
-    }}
-
-    footer {{
-      text-align: center;
-      color: #777;
-      margin-top: 40px;
-      font-size: 0.9rem;
-    }}
-
-    @media (max-width: 850px) {{
-      .page-layout {{
-        grid-template-columns: 1fr;
-      }}
-
-      .sidebar {{
-        position: static;
-      }}
-    }}
-  </style>
-</head>
-<body>
-
-<h1>The Poop Observatory</h1>
-<p class="subtitle">Automatically generated from anonymised raw poop data.</p>
-
-<div class="page-layout">
-
-<nav class="sidebar">
-  <h2>Visualisations</h2>
-{nav_links}
-</nav>
-
-<main class="content">
-
-<div class="statbox">
-
-  <div class="stat">
-    <h3>Total observations</h3>
-    <p>{summary["observations"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Days covered</h3>
-    <p>{summary["days"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Days with poop</h3>
-    <p>{summary["days_with_poop"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Zero-poop days</h3>
-    <p>{summary["zero_poop_days"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Average/day</h3>
-    <p>{summary["average_per_day"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Median/day</h3>
-    <p>{summary["median_per_day"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Maximum/day</h3>
-    <p>{summary["max_per_day"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Good poops</h3>
-    <p>{summary["good"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Poor poops</h3>
-    <p>{summary["poor"]}</p>
-  </div>
-
-  <div class="stat">
-    <h3>Good poop rate</h3>
-    <p>{summary["good_rate"]}%</p>
-  </div>
-
-  <div class="stat">
-    <h3>Poor poop rate</h3>
-    <p>{summary["poor_rate"]}%</p>
-  </div>
-
-  <div class="stat">
-    <h3>Most common hour</h3>
-    <p>{summary["most_common_hour"]}:00</p>
-  </div>
-
-</div>
-
-<div class="plots">
-{plot_cards}
-</div>
-
-</main>
-
-</div>
-
-<footer>
-  Raw timestamps are not displayed on this site.
-</footer>
-
-</body>
-</html>
-"""
-
-Path("index.html").write_text(html, encoding="utf-8")
+if __name__ == "__main__":
+    main()
