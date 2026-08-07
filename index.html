@@ -1,52 +1,255 @@
 <!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>The Poop Observatory</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"><style>
-:root{--paper:#eef1f4;--panel:#fff;--ink:#16233b;--muted:#5b6b82;--line:#d9dfe6;}
-*{box-sizing:border-box;}
-html{scroll-behavior:smooth;}
-body{max-width:1250px;margin:auto;padding:24px;background:var(--paper);
- color:var(--ink);font-family:Inter,Arial,sans-serif;line-height:1.5;}
-.masthead{border-bottom:2px solid var(--ink);padding-bottom:16px;margin-bottom:8px;}
-.masthead h1{font-family:'Space Grotesk',sans-serif;font-weight:700;
- letter-spacing:-0.5px;margin:0;font-size:2.4rem;}
-.eyebrow{font-family:'IBM Plex Mono',monospace;text-transform:uppercase;
- letter-spacing:0.18em;font-size:0.72rem;color:var(--muted);margin:0 0 6px;}
-.subtitle{color:var(--muted);margin:6px 0 0;}
-.page-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:28px;
- align-items:start;margin-top:24px;}
-.sidebar{position:sticky;top:20px;background:var(--panel);border:1px solid var(--line);
- border-radius:12px;padding:16px;}
-.sidebar h2{font-family:'IBM Plex Mono',monospace;font-size:0.75rem;
- text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin:0 0 12px;}
-.nav-section{margin-bottom:16px;}
-.nav-section h3{font-family:'IBM Plex Mono',monospace;font-size:0.68rem;
- text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);margin:12px 0 4px;}
-.nav-section:first-of-type h3{margin-top:0;}
-.sidebar a{display:block;color:var(--ink);text-decoration:none;padding:6px 9px;
- border-radius:7px;font-size:0.9rem;}
-.sidebar a:hover{background:var(--paper);}
-.content{min-width:0;}
-.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
- gap:12px;margin-bottom:28px;}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;
- padding:14px 16px;}
-.stat h3{font-family:'IBM Plex Mono',monospace;font-size:0.68rem;
- text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);
- margin:0 0 6px;font-weight:500;}
-.stat p{font-family:'IBM Plex Mono',monospace;font-size:1.7rem;font-weight:600;
- margin:0;line-height:1.1;}
-.stat span{font-size:0.78rem;color:var(--muted);font-family:Inter,sans-serif;
- font-weight:400;display:block;margin-top:2px;}
-.plot-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
- padding:16px 18px;margin-bottom:26px;scroll-margin-top:20px;}
-.plot-card h2{font-family:'Space Grotesk',sans-serif;font-size:1.15rem;
- margin:0 0 12px;text-align:left;}
-.plot-card img{width:100%;display:block;}
-.note{font-size:0.82rem;color:var(--muted);margin:10px 2px 0;}
-.methods{background:var(--panel);border:1px solid var(--line);border-radius:12px;
- padding:18px 22px;margin-top:8px;}
-.methods h2{font-family:'Space Grotesk',sans-serif;font-size:1.1rem;margin:0 0 8px;}
-.methods p{font-size:0.86rem;color:var(--muted);margin:6px 0;}
-footer{text-align:center;color:var(--muted);margin-top:36px;font-size:0.85rem;
- font-family:'IBM Plex Mono',monospace;}
-@media(max-width:850px){.page-layout{grid-template-columns:1fr;}
- .sidebar{position:static;}}
-</style></head><body><div class='masthead'><p class='eyebrow'>An instrument reading of the daily rhythm</p><h1>The Poop Observatory</h1><p class='subtitle'>Automatically generated from an anonymised raw log. <a href='observatory.html' style='color:#2f6f8f;font-weight:600;text-decoration:none'>Observation report &rarr;</a></p></div><div class='page-layout'><nav class='sidebar'><h2>Readings</h2><div class="nav-section"><h3>Rhythm of the day</h3><a href="#the-dial">The dial</a></div><div class="nav-section"><h3>Rhythm of the week</h3><a href="#poops-by-weekday">Poops by weekday</a><a href="#good-rate-by-weekday">Good rate by weekday</a></div><div class="nav-section"><h3>Over time</h3><a href="#cumulative-poops-over-time">Cumulative poops over time</a><a href="#rolling-average">Rolling average</a><a href="#poops-by-month">Poops by month</a></div><div class="nav-section"><h3>Consistency</h3><a href="#poop-calendar">Poop calendar</a><a href="#top-3-longest-streaks">Top 3 longest streaks</a></div><div class="nav-section"><h3>Distributions</h3><a href="#daily-count-distribution">Daily count distribution</a><a href="#time-between-poops">Time between poops</a><a href="#poop-quality">Poop quality</a></div></nav><main class='content'><div class='readout'><div class="stat"><h3>Observations</h3><p>320</p></div><div class="stat"><h3>Days covered</h3><p>215</p></div><div class="stat"><h3>Good rate</h3><p>91.6%</p></div><div class="stat"><h3>Regularity</h3><p>50.2%</p></div><div class="stat"><h3>Mean clock time</h3><p>10:27</p></div><div class="stat"><h3>Typical gap</h3><p>13.7 h</p></div><div class="stat"><h3>Busiest day</h3><p>Sunday</p></div><div class="stat"><h3>Zero-poop days</h3><p>21</p><span>obs 9.8% / exp 22.6%</span></div></div><div class='plots'><div class="plot-card" id="the-dial"><h2>The dial</h2><img src="figures/dial.png" alt="The dial"><p class="note">Angle = time of day (00:00 at the top, clockwise); bar length = count. Regularity 50.2% (p < 0.001).</p></div><div class="plot-card" id="poops-by-weekday"><h2>Poops by weekday</h2><img src="figures/weekday.png" alt="Poops by weekday"><p class="note">Frequency across weekdays: p = 0.497.</p></div><div class="plot-card" id="good-rate-by-weekday"><h2>Good rate by weekday</h2><img src="figures/weekday_quality.png" alt="Good rate by weekday"><p class="note">Quality vs weekday: p = 0.541.</p></div><div class="plot-card" id="cumulative-poops-over-time"><h2>Cumulative poops over time</h2><img src="figures/cumulative.png" alt="Cumulative poops over time"></div><div class="plot-card" id="rolling-average"><h2>Rolling average</h2><img src="figures/rolling.png" alt="Rolling average"><p class="note">7-day (solid) and 30-day (dotted) mean poops per day.</p></div><div class="plot-card" id="poops-by-month"><h2>Poops by month</h2><img src="figures/monthly.png" alt="Poops by month"></div><div class="plot-card" id="poop-calendar"><h2>Poop calendar</h2><img src="figures/calendar.png" alt="Poop calendar"><p class="note">Each cell is a day; darker means more poops, blank means none logged.</p></div><div class="plot-card" id="top-3-longest-streaks"><h2>Top 3 longest streaks</h2><img src="figures/streaks.png" alt="Top 3 longest streaks"></div><div class="plot-card" id="daily-count-distribution"><h2>Daily count distribution</h2><img src="figures/daily_distribution.png" alt="Daily count distribution"><p class="note">Bars = observed; line = Poisson expectation for the same number of days.</p></div><div class="plot-card" id="time-between-poops"><h2>Time between poops</h2><img src="figures/time_between.png" alt="Time between poops"><p class="note">Bars = observed gaps; line = exponential model. Long multi-day gaps trimmed.</p></div><div class="plot-card" id="poop-quality"><h2>Poop quality</h2><img src="figures/quality_donut.png" alt="Poop quality"></div></div><div class='methods'><h2>Methods &amp; readings</h2><p><strong>Regularity (50.2%).</strong> Clock times are treated as angles on a 24-hour circle; the score is the mean resultant length, which is 0% if timing is spread evenly around the clock and 100% if every poop lands at the same time of day. A Rayleigh test checks that this clustering is real rather than chance (p < 0.001).</p><p><strong>Weekday frequency.</strong> A chi-square test compares poops per weekday against how many of each weekday the log actually spans (p = 0.497).</p><p><strong>Weekday quality.</strong> A contingency test asks whether the good/poor split depends on the day (p = 0.541) — treat with care, some day/quality cells are sparse.</p><p><strong>Models.</strong> Daily counts are compared with a Poisson model and gaps between poops with an exponential model; both are overlaid on the observed data above.</p></div></main></div><footer>Raw timestamps are not displayed on this site.</footer></body></html>
+:root{
+    --paper:#eef1f4;
+    --panel:#ffffff;
+    --ink:#16233b;
+    --muted:#5b6b82;
+    --line:#d9dfe6;
+    --good:#2f6f8f;
+    --poor:#d98a3d;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+    max-width:1280px;
+    margin:auto;
+    padding:24px;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:Inter,Arial,sans-serif;
+    line-height:1.5;
+}
+
+.masthead{
+    border-bottom:2px solid var(--ink);
+    padding-bottom:18px;
+    margin-bottom:8px;
+}
+
+.masthead h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;
+    letter-spacing:-0.7px;
+    margin:0;
+    font-size:2.5rem;
+}
+
+.eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    text-transform:uppercase;
+    letter-spacing:0.18em;
+    font-size:0.72rem;
+    color:var(--muted);
+    margin:0 0 6px;
+}
+
+.subtitle{
+    color:var(--muted);
+    margin:7px 0 0;
+}
+
+.page-layout{
+    display:grid;
+    grid-template-columns:220px minmax(0,1fr);
+    gap:28px;
+    align-items:start;
+    margin-top:24px;
+}
+
+.sidebar{
+    position:sticky;
+    top:20px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:16px;
+}
+
+.sidebar h2{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.75rem;
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+    color:var(--muted);
+    margin:0 0 12px;
+}
+
+.nav-section{
+    margin-bottom:17px;
+}
+
+.nav-section h3{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.67rem;
+    text-transform:uppercase;
+    letter-spacing:0.07em;
+    color:var(--muted);
+    margin:12px 0 4px;
+}
+
+.nav-section:first-of-type h3{
+    margin-top:0;
+}
+
+.sidebar a{
+    display:block;
+    color:var(--ink);
+    text-decoration:none;
+    padding:6px 9px;
+    border-radius:7px;
+    font-size:0.88rem;
+}
+
+.sidebar a:hover{
+    background:var(--paper);
+}
+
+.content{
+    min-width:0;
+}
+
+.section-heading{
+    margin:36px 0 14px;
+    padding-top:8px;
+    border-top:1px solid var(--line);
+}
+
+.section-heading h2{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:1.35rem;
+    margin:0;
+}
+
+.section-heading p{
+    color:var(--muted);
+    margin:3px 0 0;
+    font-size:0.88rem;
+}
+
+.readout{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
+    gap:12px;
+    margin-bottom:28px;
+}
+
+.stat{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px 16px;
+}
+
+.stat h3{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.66rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--muted);
+    margin:0 0 6px;
+    font-weight:500;
+}
+
+.stat p{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:1.65rem;
+    font-weight:600;
+    margin:0;
+    line-height:1.1;
+}
+
+.stat span{
+    font-size:0.76rem;
+    color:var(--muted);
+    font-family:Inter,sans-serif;
+    font-weight:400;
+    display:block;
+    margin-top:4px;
+}
+
+.plot-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:16px 18px;
+    margin-bottom:22px;
+    scroll-margin-top:20px;
+}
+
+.plot-card h3{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:1.08rem;
+    margin:0 0 11px;
+}
+
+.plot-card img{
+    width:100%;
+    display:block;
+}
+
+.note{
+    font-size:0.81rem;
+    color:var(--muted);
+    margin:9px 2px 0;
+}
+
+.methods{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 22px;
+    margin-top:30px;
+}
+
+.methods h2{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:1.2rem;
+    margin:0 0 10px;
+}
+
+.methods h3{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:0.98rem;
+    margin:16px 0 4px;
+}
+
+.methods p{
+    font-size:0.86rem;
+    color:var(--muted);
+    margin:6px 0;
+}
+
+footer{
+    text-align:center;
+    color:var(--muted);
+    margin-top:36px;
+    font-size:0.82rem;
+    font-family:'IBM Plex Mono',monospace;
+}
+
+@media(max-width:850px){
+
+    body{
+        padding:14px;
+    }
+
+    .page-layout{
+        grid-template-columns:1fr;
+    }
+
+    .sidebar{
+        position:static;
+    }
+
+    .masthead h1{
+        font-size:2rem;
+    }
+}
+</style></head><body><div class='masthead'><p class='eyebrow'>An instrument reading of the daily rhythm</p><h1>The Poop Observatory</h1><p class='subtitle'>A statistical field notebook of frequency, timing, regularity and quality. <a href='observatory.html' style='color:#2f6f8f;font-weight:600;text-decoration:none'>Observation report →</a></p></div><div class='page-layout'><nav class='sidebar'><h2>Readings</h2><div class="nav-section"><h3>The daily rhythm</h3><a href="#signature-24-hour-dial">Signature 24-hour dial</a><a href="#observations-by-hour">Observations by hour</a><a href="#weekday-hour-activity">Weekday × hour activity</a></div><div class="nav-section"><h3>Timing & intervals</h3><a href="#time-between-observations">Time between observations</a></div><div class="nav-section"><h3>Stability over time</h3><a href="#daily-observations-and-rolling-means">Daily observations and rolling means</a><a href="#observation-calendar">Observation calendar</a><a href="#top-3-longest-observation-streaks">Top 3 longest observation streaks</a><a href="#cumulative-observations">Cumulative observations</a></div><div class="nav-section"><h3>Quality</h3><a href="#good-and-poor-observations-over-time">Good and poor observations over time</a><a href="#monthly-quality">Monthly quality</a><a href="#when-do-poor-observations-occur">When do poor observations occur?</a><a href="#overall-quality">Overall quality</a></div><div class="nav-section"><h3>Null-model diagnostics</h3><a href="#daily-counts-vs-poisson">Daily counts vs Poisson</a></div></nav><main class='content'><div class='readout'><div class="stat"><h3>Observations</h3><p>320</p></div><div class="stat"><h3>Days covered</h3><p>215</p><span>2026-01-05 → 2026-08-07</span></div><div class="stat"><h3>Per day</h3><p>1.49</p><span>median 1.0</span></div><div class="stat"><h3>Good</h3><p>91.6%</p><span>293 observations</span></div><div class="stat"><h3>Poor</h3><p>8.4%</p><span>27 observations</span></div><div class="stat"><h3>Timing concentration</h3><p>0.50</p><span>mean time 10:27</span></div><div class="stat"><h3>Typical gap</h3><p>13.7 h</p><span>IQR 5.8–23.2 h</span></div><div class="stat"><h3>Busiest weekday</h3><p>Sunday</p><span>frequency 0.497</span></div></div><div class="section-heading"><h2>The daily rhythm</h2><p>The signature reading: when during the 24-hour cycle do observations occur?</p></div><div class="plot-card" id="signature-24-hour-dial"><h3>Signature 24-hour dial</h3><img src="figures/dial.png" alt="Signature 24-hour dial"><p class="note">00:00 is at the top and time runs clockwise. Bar length represents the number of observations; amber marks poor observations.</p></div><div class="plot-card" id="observations-by-hour"><h3>Observations by hour</h3><img src="figures/hour_distribution.png" alt="Observations by hour"><p class="note">The linear view makes peaks and troughs easier to compare than the polar dial.</p></div><div class="plot-card" id="weekday-hour-activity"><h3>Weekday × hour activity</h3><img src="figures/weekday_hour_heatmap.png" alt="Weekday × hour activity"><p class="note">Each cell is the number of observations for that weekday and hour.</p></div><div class="section-heading"><h2>Timing & intervals</h2><p>How closely spaced are consecutive observations?</p></div><div class="plot-card" id="time-between-observations"><h3>Time between observations</h3><img src="figures/time_between.png" alt="Time between observations"><p class="note">Long gaps above the 99th percentile are omitted from the display so the main distribution remains visible. The exponential curve is a null-model reference.</p></div><div class="section-heading"><h2>Stability over time</h2><p>Does the overall frequency remain stable, or does it drift?</p></div><div class="plot-card" id="daily-observations-and-rolling-means"><h3>Daily observations and rolling means</h3><img src="figures/daily_counts.png" alt="Daily observations and rolling means"><p class="note">Faint bars show individual days; solid = 7-day mean; dotted = 30-day mean.</p></div><div class="plot-card" id="observation-calendar"><h3>Observation calendar</h3><img src="figures/calendar.png" alt="Observation calendar"><p class="note">Each cell is one calendar day. Darker cells contain more observations; pale cells contain none.</p></div><div class="plot-card" id="top-3-longest-observation-streaks"><h3>Top 3 longest observation streaks</h3><img src="figures/streaks.png" alt="Top 3 longest observation streaks"><p class="note">A streak is a consecutive run of calendar days containing at least one observation.</p></div><div class="plot-card" id="cumulative-observations"><h3>Cumulative observations</h3><img src="figures/cumulative.png" alt="Cumulative observations"><p class="note">The cumulative curve provides a simple long-term view of how observations accumulate.</p></div><div class="section-heading"><h2>Quality</h2><p>Are poor observations isolated events or do they cluster in time?</p></div><div class="plot-card" id="good-and-poor-observations-over-time"><h3>Good and poor observations over time</h3><img src="figures/quality_over_time.png" alt="Good and poor observations over time"><p class="note">Good observations are shown faintly; poor observations are highlighted. This shows when poor events actually occurred without creating unstable daily percentages.</p></div><div class="plot-card" id="monthly-quality"><h3>Monthly quality</h3><img src="figures/monthly_quality.png" alt="Monthly quality"><p class="note">Bars show the actual number of observations. Labels give the percentage classified as good.</p></div><div class="plot-card" id="when-do-poor-observations-occur"><h3>When do poor observations occur?</h3><img src="figures/poor_timing.png" alt="When do poor observations occur?"><p class="note">The pale blue distribution is all observations; amber shows the poor subset.</p></div><div class="plot-card" id="overall-quality"><h3>Overall quality</h3><img src="figures/quality_donut.png" alt="Overall quality"><p class="note">Good = Value 1. Poor = Value 0. The values are taken directly from the raw log.</p></div><div class="section-heading"><h2>Null-model diagnostics</h2><p>Would a simple Poisson process reproduce the observed daily counts?</p></div><div class="plot-card" id="daily-counts-vs-poisson"><h3>Daily counts vs Poisson</h3><img src="figures/daily_distribution.png" alt="Daily counts vs Poisson"><p class="note">Bars are observed days; the line is the expected distribution from a Poisson model with the observed mean.</p></div><div class="methods"><h2>Methods &amp; interpretation</h2><h3>Timing concentration</h3><p><strong>R = 0.502.</strong> This is the mean resultant length of the clock times. R = 0 means observations are spread evenly around the 24-hour cycle; R = 1 means they are concentrated at a single time. The circular mean time is <strong>10:27</strong>. The Rayleigh test gives <strong>p < 0.001</strong> for the null hypothesis of uniform timing.</p><h3>Weekday frequency</h3><p>Weekday counts are compared against the number of Mondays, Tuesdays, etc. actually present in the observation window, rather than assuming exactly one seventh of observations should fall on each day. Result: <strong>p = 0.497</strong>.</p><h3>Quality and weekday</h3><p>A contingency test asks whether the good/poor composition depends on weekday. Result: <strong>p = 0.541</strong>. Some expected cells are sparse, so this result should be treated cautiously.</p><h3>Quality and time of day</h3><p>A two-sample Kolmogorov–Smirnov test compares the clock-time distributions of good and poor observations. Result: <strong>p < 0.001</strong>. Because clock time is circular, this is presented as a supplementary diagnostic rather than a definitive circular test.</p><h3>Daily counts</h3><p>The observed daily count distribution is compared with a Poisson model whose rate is estimated from the observed mean (<strong>λ = 1.49</strong>). The variance-to-mean dispersion ratio is <strong>0.54</strong>. Values around 1 are broadly consistent with Poisson dispersion; substantially larger values indicate overdispersion.</p><h3>Intervals</h3><p>The interval plot compares observed gaps with an exponential null model based on the observed mean gap (<strong>16.1 h</strong>). The model is used as a reference distribution, not as an assumption that the underlying behaviour is memoryless.</p><h3>Quality definition</h3><p><strong>Good</strong> = Value 1. <strong>Poor</strong> = Value 0. The dashboard uses the raw values directly; no quality values are inferred or imputed.</p></div></main></div><footer>Raw timestamps are not displayed on this site.</footer></body></html>
